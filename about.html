@@ -37,8 +37,8 @@
     <div class="wrap"><div class="prose">
       <h2 id="method">Method</h2>
       <ol class="steps">
-        <li>We start one trip in each of the <span data-n="today.areas"></span> Census areas (SA1s) in the City of Melton. Each trip starts at the area's population-weighted centre, from ABS Mesh Block counts.</li>
-        <li>We route each trip with r5r on one fixed snapshot of the Victorian GTFS Schedule timetable (<span data-n="sources.feed_snapshot"></span>) and the OpenStreetMap walking network, on <span data-n="sources.model_date"></span>.</li>
+        <li>We start one trip in each of the <span data-n="today.areas">402</span> Census areas (SA1s) in the City of Melton. Each trip starts at the area's population-weighted centre, from ABS Mesh Block counts.</li>
+        <li>We route each trip with r5r on one fixed snapshot of the Victorian GTFS Schedule timetable (<span data-n="sources.feed_snapshot">14 Aug 2026</span>) and the OpenStreetMap walking network, on <span data-n="sources.model_date">Wednesday 9 September 2026</span>.</li>
         <li>Every journey is a same-day return: arrive at Sunshine Hospital for an afternoon appointment, then leave at 6&nbsp;pm or 8:30&nbsp;pm and get home.</li>
         <li>We keep two measures apart, with no combined score: the full round-trip time, and the share of homes with no car (2021 Census).</li>
         <li>A priority area is above the Melton middle value for round-trip time AND in the top tenth for homes with no car. This is the high–high quadrant.</li>
@@ -58,7 +58,7 @@
       <table class="sources">
         <thead><tr><th scope="col">Data</th><th scope="col">From</th><th scope="col">Licence</th></tr></thead>
         <tbody>
-          <tr><td>GTFS Schedule timetable (Victoria), <span data-n="sources.feed_snapshot"></span> snapshot</td><td>Department of Transport and Planning, Transport Victoria open data</td><td>CC BY 4.0</td></tr>
+          <tr><td>GTFS Schedule timetable (Victoria), <span data-n="sources.feed_snapshot">14 Aug 2026</span> snapshot</td><td>Department of Transport and Planning, Transport Victoria open data</td><td>CC BY 4.0</td></tr>
           <tr><td>Walking network (footpaths and streets)</td><td>© OpenStreetMap contributors</td><td>ODbL</td></tr>
           <tr><td>SA1 and Mesh Block boundaries, ASGS Edition 3</td><td>Australian Bureau of Statistics</td><td>CC BY 4.0</td></tr>
           <tr><td>2021 Census Mesh Block counts</td><td>Australian Bureau of Statistics</td><td>CC BY 4.0</td></tr>
@@ -85,7 +85,6 @@
     <p><a href="about.html#sources">Data sources and licences</a></p>
   </div>
 </footer>
-<script src="data/site_numbers.js"></script>
 <script src="assets/site.js"></script>
 </body>
 </html>
