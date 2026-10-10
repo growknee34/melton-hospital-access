@@ -1,0 +1,2075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Melton &rarr; Sunshine Hospital: Access Explorer</title>
+<style>
+  /* Design polish (Oct 2026): display only. Chrome is cool neutral + one dark
+     ink, so nothing around the map competes with the map's own colours.
+     System fonts only (offline): Segoe UI Variable on Windows 11. */
+  :root {
+    --bg: #eef1f3;          /* page and bands */
+    --panel: #ffffff;       /* surfaces */
+    --border: #cdd4da;      /* rules */
+    --rule-soft: #e3e8ec;
+    --text: #15222e;        /* ink */
+    --ink-soft: #3a4651;
+    --muted: #4f5b66;       /* 7:1 on white */
+    --accent: #15222e;      /* active state = ink, not a map colour */
+    --tint: #e4eaef;        /* current row, notes */
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.45;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, select { font-family: inherit; }
+  :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+  /* ---- header ---- */
+  header {
+    padding: 12px 24px 10px 24px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 650; line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin: 0 0 3px 0;
+  }
+  header .sub { font-size: 15px; color: var(--muted); }
+
+  /* ---- controls: labelled segmented groups ---- */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    align-items: center;
+    padding: 9px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    font-size: 14px;
+  }
+  .control-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .control-group .grouplabel { color: var(--muted); font-weight: 600; }
+  .control-group > div { display: inline-flex; }
+  /* scenario picker on its own row, after the view switches */
+  .control-group:has(#scenario-buttons) { order: 10; flex-basis: 100%; }
+  button.scenario-btn, button.window-btn, button.view-btn {
+    padding: 5px 13px;
+    min-height: 33px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 0;
+    margin-left: -1px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .control-group > div > button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+  .control-group > div > button:last-child { border-radius: 0 6px 6px 0; }
+  .control-group > div > button:only-child { border-radius: 6px; }
+  button.scenario-btn:hover, button.window-btn:hover, button.view-btn:hover { background: var(--bg); }
+  button.scenario-btn.active, button.window-btn.active, button.view-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    position: relative; z-index: 1;
+    font-weight: 600;
+  }
+  button.scenario-btn:disabled {
+    color: #8b949c;
+    background: var(--bg);
+    cursor: not-allowed;
+  }
+  button.window-btn:disabled, select#metric-select:disabled { color: #8b949c; background: var(--bg); cursor: not-allowed; }
+  select#metric-select {
+    padding: 5px 8px; min-height: 34px; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text);
+  }
+  .helped-def {
+    font-size: 14px; color: var(--ink-soft);
+    border-left: 3px solid var(--text); padding: 2px 0 2px 10px; margin-left: 8px;
+  }
+
+  /* ---- scenario line and result cards ---- */
+  #scenario-desc {
+    padding: 8px 24px; background: var(--bg);
+    font-size: 15px; color: var(--text);
+  }
+  #scenario-desc b { font-weight: 650; margin-right: 4px; }
+  #cards {
+    display: flex; gap: 10px; padding: 0 24px 12px 24px;
+    background: var(--bg); border-bottom: 1px solid var(--border); overflow-x: auto;
+  }
+  .card {
+    flex: 1 1 0; min-width: 180px;
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px 9px 12px;
+    background: var(--panel); color: var(--text);
+    cursor: pointer; font-size: 14px; line-height: 1.38;
+  }
+  .card:hover { border-color: var(--ink-soft); }
+  .card .card-h { font-family: var(--font-display); font-weight: 650; font-size: 15.5px; margin-bottom: 3px; }
+  .card .card-t { color: var(--ink-soft); }
+  .card.active { background: var(--text); border-color: var(--text); color: #fff; }
+  .card.active .card-t { color: #e8edf1; }
+
+  /* ---- main: map + side panel ---- */
+  main {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+  #map-wrap {
+    flex: 1;
+    position: relative;
+    background: #ffffff;
+    overflow: hidden;
+    display: flex;          /* legend docked in its own column, left of the map */
+    flex-direction: row;
+    min-width: 0;
+  }
+  #map-svg { flex: 1 1 auto; min-width: 0; cursor: grab; touch-action: none; user-select: none; }
+  #map-svg.dragging { cursor: grabbing; }
+  #map-nav {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--panel);
+    box-shadow: 0 1px 4px rgba(21, 34, 46, 0.14);
+  }
+  #map-nav button {
+    width: 36px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-bottom: 1px solid var(--rule-soft);
+    background: var(--panel);
+    color: var(--text);
+    font: 600 18px/1 var(--font);
+    cursor: pointer;
+  }
+  #map-nav button:last-child { border-bottom: 0; font-size: 15px; }
+  #map-nav button:hover { background: var(--bg); }
+  #stub-banner {
+    position: absolute;
+    top: 14px; left: 50%;
+    transform: translateX(-50%);
+    background: #fff3cd;
+    border: 1px solid #e0c260;
+    color: #5c4700;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    display: none;
+    z-index: 5;
+  }
+
+  /* ---- legend (sizes in em so the export layouts can scale it) ---- */
+  #legend {
+    order: -1;
+    flex: 0 0 380px;
+    width: 380px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 14px 16px 16px 24px;
+    font-size: 14px;
+    line-height: 1.35;
+  }
+  /* "Hide legend": the column collapses to a small box over the map's top-left
+     corner and the map re-fits to the full width (class set in render()) */
+  #map-wrap.legend-collapsed #legend {
+    position: absolute; z-index: 5; left: 12px; top: 12px;
+    flex: none; width: auto; max-width: 360px;
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 8px 7px 14px; box-shadow: 0 1px 6px rgba(21, 34, 46, 0.14);
+  }
+  #map-wrap.legend-collapsed #legend .legend-head { margin-bottom: 0; }
+  /* scrolling columns: keep the scrollbar visible (Windows 11 hides overlay
+     scrollbars) and fade the bottom edge while there is more below */
+  #legend, aside#detail { scrollbar-width: thin; scrollbar-color: #8d98a2 transparent; }
+  aside#detail::after {
+    content: ""; display: block; position: sticky; bottom: 0;
+    height: 28px; margin: 0 0 -20px 0;
+    background: linear-gradient(rgba(255, 255, 255, 0), #ffffff 85%);
+    pointer-events: none;
+  }
+  /* smaller screens and projectors: tighter columns and bands, same text sizes */
+  @media (max-width: 1499px) {
+    header, .controls, #scenario-desc { padding-left: 16px; padding-right: 16px; }
+    #cards { padding-left: 16px; padding-right: 16px; gap: 8px; }
+    #legend { flex-basis: 330px; width: 330px; padding-left: 16px; }
+    aside#detail { flex-basis: 330px; width: 330px; padding-left: 16px; padding-right: 16px; }
+  }
+  @media (max-height: 860px) {
+    header { padding-top: 8px; padding-bottom: 7px; }
+    header h1 { font-size: 19px; margin-bottom: 1px; }
+    .controls { padding-top: 6px; padding-bottom: 6px; gap: 6px 24px; }
+    button.scenario-btn, button.window-btn, button.view-btn { min-height: 30px; padding-top: 3px; padding-bottom: 3px; }
+    #scenario-desc { padding-top: 5px; padding-bottom: 5px; }
+    #cards { padding-bottom: 8px; }
+    .card { padding: 6px 10px 7px 10px; line-height: 1.32; }
+    .card .card-h { font-size: 15px; margin-bottom: 1px; }
+    #legend, aside#detail { padding-top: 10px; }
+  }
+  /* narrow screens: legend floats over the map again */
+  @media (max-width: 1099px) {
+    #legend {
+      position: absolute; z-index: 5; left: 12px; top: 12px; width: 330px;
+      max-width: calc(100% - 24px); max-height: calc(100% - 24px);
+      border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px 12px 14px;
+      box-shadow: 0 1px 6px rgba(21, 34, 46, 0.14);
+    }
+  }
+  #legend .ramp { height: 10px; border-radius: 2px; margin: 4px 0; }
+  #legend .ramp-labels { display: flex; justify-content: space-between; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #legend .legend-title { font-weight: 650; margin-bottom: 3px; }
+  #legend .legend-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  #legend .legend-head .legend-title { flex: 1; margin-bottom: 0; font-family: var(--font-display); font-size: 1.07em; }
+  #legend .legend-toggle {
+    flex: 0 0 auto; padding: 3px 9px; font-size: 0.93em; border: 1px solid var(--border);
+    background: var(--panel); border-radius: 5px; cursor: pointer; color: var(--text);
+  }
+  #legend .legend-toggle:hover { background: var(--bg); }
+  #legend .legend-lead { font-size: 1em; font-weight: 700; margin: 3px 0 6px 0; display: flex; gap: 6px; align-items: center; }
+  #legend .status-key { display: flex; flex-direction: column; gap: 3px; margin-top: 5px; }
+  #legend .status-row { display: flex; align-items: center; gap: 8px; }
+  #legend .status-row span.lbl { color: var(--text); }
+  #legend .cnt { color: var(--muted); margin-left: auto; padding-left: 10px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #legend .view-note {
+    margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--rule-soft);
+    color: var(--muted);
+  }
+  #legend .cut-note { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--rule-soft); color: var(--muted); }
+  #legend .cut-note b { color: var(--text); font-weight: 600; }
+  #legend .scenario-note,
+  #legend .why-note { margin: 3px 0 7px 0; padding: 5px 8px; background: var(--tint); border-left: 3px solid var(--text); border-radius: 0 4px 4px 0; color: var(--text); }
+  #legend details.cut-details > summary { cursor: pointer; color: var(--text); font-weight: 600; margin-top: 7px; text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; }
+  #legend .rural-note { margin-top: 4px; color: var(--muted); }
+  .legend-note-line { font-weight: 600; margin: 5px 0 2px 0; color: var(--text); }
+
+  /* legend swatches: map symbols, unchanged */
+  .swatch { flex: 0 0 auto; width: 11px; height: 11px; }
+  .swatch-dest { border-radius: 50%; background: #1f1f1d; border: 1.5px solid #fff; outline: 1px solid #999; }
+  .swatch-diamond { background: #4d4d4d; transform: rotate(45deg); width: 8px; height: 8px; }
+  .swatch-tri-up {
+    width: 0; height: 0; background: none;
+    border-left: 5.5px solid transparent; border-right: 5.5px solid transparent;
+    border-bottom: 10px solid #d97706;
+  }
+  .swatch-tri-down {
+    width: 0; height: 0; background: none;
+    border-left: 5.5px solid transparent; border-right: 5.5px solid transparent;
+    border-top: 10px solid #7c2d12;
+  }
+  .swatch-square-suppressed {
+    background: repeating-linear-gradient(45deg, #b3b3ac, #b3b3ac 2px, #e6e6e2 2px, #e6e6e2 4px);
+    border: 1px solid #8a8a86;
+  }
+  .swatch-square-undefined { background: #ffffff; border: 1.5px dashed #8a8a86; }
+  .swatch-hosp { width: 12px; height: 12px; }
+  .swatch-line { width: 14px; height: 4px; background: #3a3a3a; border-top: 1px solid #fff; border-bottom: 1px solid #fff; outline: 1px solid #3a3a3a; }
+  .swatch-station { border-radius: 50%; background: #fff; border: 2px solid #3a3a3a; width: 9px; height: 9px; margin: 0 1px; }
+  .swatch-outline { background: #f2f1ec; border: 1.5px solid #9a988d; }
+  .swatch-circle { border-radius: 50%; border: 1px solid #333; }
+  .swatch-diamond-nt { background: #CC79A7; border: 1px solid #333; transform: rotate(45deg); width: 8px; height: 8px; margin: 0 1.5px; }
+  .swatch-ring { border-radius: 50%; border: 2px solid #000; background: none; width: 13px; height: 13px; }
+  .swatch-sqring { border: 2px solid #000; background: none; width: 13px; height: 13px; }
+  .swatch-sqring-dash { border: 2px dashed #000; background: none; width: 13px; height: 13px; }
+  .swatch-nodata { background: #d4d4d0; border: 1px solid #8a8a86; }
+
+  /* ---- side panel ---- */
+  aside#detail {
+    width: 372px;
+    flex: 0 0 372px;
+    border-left: 1px solid var(--border);
+    background: var(--panel);
+    padding: 16px 20px 20px 20px;
+    overflow-y: auto;
+    font-size: 14px;
+  }
+  aside#detail h2 {
+    font-family: var(--font-display);
+    font-size: 17px; font-weight: 650; line-height: 1.25;
+    margin: 0 0 8px 0;
+  }
+  aside#detail table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  aside#detail td { padding: 3px 0; vertical-align: top; }
+  aside#detail td.k { color: var(--muted); width: 55%; padding-right: 8px; }
+  aside#detail .section-h {
+    font-weight: 650; margin-top: 14px; margin-bottom: 3px; padding-top: 8px;
+    border-top: 1px solid var(--rule-soft); color: var(--text);
+  }
+  .iqr { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  aside#detail .placeholder { color: var(--muted); }
+  aside#detail .summary { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: var(--bg); }
+  aside#detail .summary .sa1 { font-family: var(--font-display); font-size: 17px; font-weight: 700; }
+  aside#detail .summary .ctx { color: var(--muted); font-size: 14px; margin-bottom: 5px; }
+  aside#detail .summary td.k { width: 48%; }
+  aside#detail details.tech { margin-top: 12px; }
+  aside#detail details.tech > summary { cursor: pointer; font-weight: 600; color: var(--text); }
+  #ranking-panel { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--border); display: none; }
+  #ranking-panel h2 { margin-bottom: 4px; }
+  #ranking-panel .sub { color: var(--muted); font-size: 14px; margin-bottom: 8px; }
+  #ranking-panel table.rank { width: 100%; border-collapse: collapse; margin: 4px 0; }
+  #ranking-panel table.rank th, #ranking-panel table.rank td { padding: 5px 5px; border-bottom: 1px solid var(--rule-soft); text-align: right; }
+  #ranking-panel table.rank th:first-child, #ranking-panel table.rank td:first-child { text-align: left; padding-left: 6px; }
+  #ranking-panel table.rank th { font-weight: 600; color: var(--muted); font-size: 13px; line-height: 1.25; vertical-align: bottom; border-bottom: 1px solid var(--border); }
+  #ranking-panel table.rank td { font-size: 14px; }
+  #ranking-panel table.rank tr.current td { background: var(--tint); font-weight: 650; }
+  #ranking-panel table.rank tr.current td:first-child { box-shadow: inset 3px 0 0 var(--text); }
+  #ranking-panel .s3-note { margin-top: 8px; padding: 6px 9px; background: var(--tint); border-left: 3px solid var(--text); border-radius: 0 4px 4px 0; }
+
+  footer {
+    padding: 7px 24px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* ---- map drawing: unchanged ---- */
+  .origin-shape { cursor: pointer; }
+  path.sa1-area { stroke: #ffffff; stroke-width: 0.7; cursor: pointer; }
+  path.sa1-area:hover { stroke: #1f1f1d; stroke-width: 1.4; }
+  .selection-ring { fill: none; stroke: #1f1f1d; stroke-width: 1.6; stroke-dasharray: 2.5 1.5; pointer-events: none; }
+  circle.dest-marker { fill: #1f1f1d; stroke: #fff; stroke-width: 1.5; }
+  .ctx-place { font: italic 11px "Segoe UI", Arial, sans-serif; fill: #8a887f; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }
+  .ctx-station-label { font: 600 10.5px "Segoe UI", Arial, sans-serif; fill: #3a3a3a; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }
+  .ctx-hosp-label { font: 700 11.5px "Segoe UI", Arial, sans-serif; fill: #b3001b; paint-order: stroke; stroke: #fff; stroke-width: 3.5px; pointer-events: none; }
+  .ctx-large { font: italic 600 11.5px "Segoe UI", Arial, sans-serif; fill: #1f1f1d; paint-order: stroke; stroke: #fff; stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; }
+  .ctx-sa2 { font: 600 12px "Segoe UI", Arial, sans-serif; fill: #3d3c38; paint-order: stroke; stroke: #fff; stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; }
+  path.sa1-area.status-area { stroke: #a9a79c; stroke-width: 0.6; }
+
+  /* ---- print and screen export layouts (#export=map|chart) ---- */
+  #export-head, #export-foot, #export-chart { display: none; }
+  body.export-mode header, body.export-mode .controls, body.export-mode #scenario-desc, body.export-mode #cards,
+  body.export-mode aside#detail, body.export-mode footer, body.export-mode #map-nav { display: none !important; }
+  body.export-mode { background: #fff; }
+  body.export-mode #export-head { display: block; padding: 16px 22px 8px 22px; border-bottom: 1px solid var(--border); }
+  body.export-mode #export-head h1 { font-family: var(--font-display); font-size: 24px; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 4px 0; }
+  body.export-mode #export-head .sub { font-size: 15px; color: var(--ink-soft); }
+  body.export-mode #export-foot { display: block; padding: 6px 22px 12px 22px; font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--border); }
+  body.export-mode #map-wrap { display: flex; flex-direction: row; }
+  body.export-mode #legend { position: static; flex: 0 0 330px; width: 330px; max-width: none; max-height: none; overflow: hidden;
+    border: 0; border-right: 1px solid var(--border); border-radius: 0; box-shadow: none; background: #fff; font-size: 11.5px; padding: 10px 12px 8px 22px; }
+  body.export-mode #map-svg { flex: 1 1 auto; min-width: 0; }
+  body.export-mode #legend { order: -1; }
+  body.export-mode #legend .view-note { display: none; }
+  @media (min-width: 1800px) {
+    body.export-mode #legend { font-size: 14.5px; flex-basis: 430px; width: 430px; }
+    body.export-mode #legend .legend-lead { font-size: 16px; }
+    body.export-mode .ctx-sa2 { font-size: 14.5px; }
+  }
+  body.export-mode #legend .legend-lead { font-size: 14px; }
+  body.export-mode #legend .legend-toggle { display: none; }
+  body.export-mode .ctx-large { font-size: 13px; }
+  body.export-mode .ctx-sa2 { font-size: 13px; }
+  body.export-chart #map-wrap { display: none; }
+  body.export-chart #export-chart { display: flex; flex-direction: column; flex: 1; padding: 6px 22px; }
+  .chart-text { font: 15px "Segoe UI", Arial, sans-serif; fill: #1f1f1d; }
+  .chart-cat { font-weight: 600; }
+  .chart-muted { font: 13px "Segoe UI", Arial, sans-serif; fill: #52514e; }
+  .chart-note { font-size: 14px; color: #1f1f1d; margin-top: 4px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Melton &rarr; Sunshine Hospital: Access &amp; Service Improvement Scenario Explorer</h1>
+  <div class="sub">Which change to existing bus and train services most improves same-day hospital trips for Melton areas where many households have no car? <span id="generated-note"></span></div>
+</header>
+
+<div class="controls">
+  <div class="control-group">
+    <span class="grouplabel">View</span>
+    <div id="view-buttons"></div>
+  </div>
+  <div class="control-group">
+    <span class="grouplabel">Show as</span>
+    <div id="style-buttons"></div>
+  </div>
+  <div class="control-group">
+    <span class="grouplabel">Layers</span>
+    <div id="layer-buttons"></div>
+  </div>
+  <div class="control-group">
+    <span class="grouplabel">Scenario</span>
+    <div id="scenario-buttons"></div>
+    <span class="helped-def" id="helped-def">Helped = the trip home gets shorter and no part of the trip gets longer.</span>
+  </div>
+  <div class="control-group" id="time-group">
+    <span class="grouplabel">Time</span>
+    <div id="time-buttons"></div>
+  </div>
+  <div class="control-group" id="colour-group">
+    <span class="grouplabel">Colour by</span>
+    <div id="colour-buttons"></div>
+  </div>
+  <div class="control-group" id="window-group">
+    <span class="grouplabel">Window</span>
+    <div id="window-buttons"></div>
+  </div>
+  <div class="control-group" id="metric-group">
+    <span class="grouplabel">Metric</span>
+    <select id="metric-select"></select>
+  </div>
+</div>
+<div id="scenario-desc"></div>
+<div id="cards"></div>
+<div id="export-head"><h1 id="export-title"></h1><div class="sub" id="export-sub"></div></div>
+
+<main>
+  <div id="map-wrap">
+    <div id="stub-banner"></div>
+    <svg id="map-svg" width="100%" height="100%"></svg>
+    <div id="map-nav" aria-label="Map navigation">
+      <button id="zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+      <button id="zoom-out" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+      <button id="zoom-reset" type="button" title="Reset map view" aria-label="Reset map view">↺</button>
+    </div>
+    <div id="legend"></div>
+  </div>
+  <aside id="detail">
+    <div id="ranking-panel"></div>
+    <h2>Area detail</h2>
+    <div id="detail-body" class="placeholder">Click an area to select it. Hovering previews another one.</div>
+  </aside>
+  <div id="export-chart"></div>
+</main>
+
+<div id="export-foot"></div>
+<footer id="app-footer"></footer>
+
+<script src="data/melton_data.js"></script>
+<script src="data/context_layers.js"></script>
+<script src="data/sa1_polygons.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---- config -----------------------------------------------------------
+
+  // desc: the one plain sentence shown under the buttons for the selected
+  // scenario (Elvis's wording, 28 Sep 2026).
+  var SCENARIOS = [
+    { id: "S0", label: "Today", desc: "Today's timetable and hospital." },
+    { id: "S1", label: "S1 More frequent buses", desc: "One extra bus trip halfway between each pair of existing trips." },
+    { id: "S2", label: "S2 Better bus–train timing", desc: "Bus trip times shifted to meet V/Line trains." },
+    { id: "S3", label: "S3 Later evening buses", desc: "The last bus trips repeated until 10 pm." },
+    { id: "S4", label: "S4 Cobblebank hospital", desc: "New hospital site on today's network — not a future timetable." }
+  ];
+  var WINDOWS = [
+    { id: "weekday_peak", label: "Weekday peak" },
+    { id: "weekday_offpeak", label: "Weekday off-peak" },
+    { id: "weekday_late_return", label: "Weekday late return" },
+    { id: "weekend", label: "Weekend" }
+  ];
+  // direction: "outbound" | "return_leg" | "origin" (static, scenario-independent)
+  var METRICS = [
+    { id: "travel_time_min", label: "Outbound travel time (min)", direction: "outbound", group: "difficulty" },
+    { id: "excess_wait_min", label: "Outbound excess wait (min)", direction: "outbound", group: "difficulty" },
+    { id: "total_burden_min", label: "Outbound total burden (min)", direction: "outbound", group: "difficulty" },
+    { id: "return_travel_time_min", label: "Return travel time (min)", direction: "return_leg", group: "difficulty" },
+    // n_rides = number of transit (non-walk) legs, R/05_traveltimes.R --
+    // rides, not transfers. Transfers = rides - 1 (shown in the detail panel).
+    { id: "n_rides", label: "Outbound transit rides", direction: "outbound", group: "difficulty" },
+    { id: "walk_distance_m", label: "Outbound walk distance (m)", direction: "outbound", group: "difficulty" },
+    { id: "zero_vehicle_share", label: "Zero-vehicle household share", direction: "origin", group: "dependency" }
+  ];
+
+  var DESTINATIONS = {
+    S0: { lon: 144.8173897, lat: -37.7588359, label: "Sunshine Hospital" },
+    S4: { lon: 144.6045509, lat: -37.7160486, label: "New Melton Hospital site, Cobblebank" }
+  };
+
+  // Destination is Sunshine Hospital for every scenario except S4 (B13: S4 is
+  // a destination-coordinate swap on the baseline network, not an invented
+  // Cobblebank timetable) -- defined for every scenario id, independent of
+  // whether that scenario's travel-time data has been computed yet, so the
+  // legend/marker can show it even for a not-yet-computed scenario.
+  function destinationFor(scenarioId) {
+    return scenarioId === "S4" ? DESTINATIONS.S4 : DESTINATIONS.S0;
+  }
+
+  var SVGNS = "http://www.w3.org/2000/svg";
+
+  // ---- journey-status / dependency-axis symbol config ----------------------
+  // Distinct shape AND colour per status -- never colour alone (accessibility).
+  // "ok" (difficulty metrics) and "dependency-eligible" (dependency metric)
+  // are drawn as a circle filled from the metric's colour ramp, handled
+  // separately in drawOriginShape(); everything below is a fixed, non-ramp
+  // appearance for a status that means "no metric value to show here".
+
+  var JOURNEY_STATUS_META = {
+    "unroutable":           { shape: "diamond",   fill: "#4d4d4d", stroke: "#222222", label: "Unroutable (no service in any window)" },
+    "outbound-no-service":  { shape: "triangle-up",   fill: "#d97706", stroke: "#7c4a03", label: "Outbound: no scheduled service" },
+    "return-no-service":    { shape: "triangle-down", fill: "#7c2d12", stroke: "#451a03", label: "Return: no scheduled service" }
+  };
+  var DEPENDENCY_AXIS_META = {
+    "dependency-suppressed": { shape: "square-suppressed", fill: "#b3b3ac", stroke: "#8a8a86", label: "Too few households to measure (under 20)" },
+    "dependency-undefined":  { shape: "square-undefined",  fill: "#ffffff", stroke: "#8a8a86", label: "Dependency undefined (0 dwellings)" }
+  };
+
+  // ---- "Priority areas" view config (Phase 8c) -------------------------------
+  // Classes are read from MELTON_DATA.priority (R/07_results.R +
+  // R/phase8_ranking.R via R/08_export.R) -- nothing is classified or counted
+  // for the ranking here. Palette: Okabe-Ito (colour-blind-safe categorical);
+  // the two non-cell classes also differ by SHAPE, never colour alone.
+  // Cell ids are "<access>_<dependency>".
+
+  var PRIORITY_CLASSES = [
+    // deeper than Okabe-Ito vermillion so it separates from the amber on a
+    // projector (all-pairs check: CVD and normal-vision dE >= 20)
+    { id: "high_high", shape: "circle",  fill: "#A63D00", label: "Priority: long trip AND many homes with no car" },
+    { id: "high_low",  shape: "circle",  fill: "#E69F00", label: "Long trip, fewer homes with no car" },
+    { id: "low_high",  shape: "circle",  fill: "#0072B2", label: "Shorter trip, many homes with no car" },
+    { id: "low_low",   shape: "circle",  fill: "#56B4E9", label: "Shorter trip, fewer homes with no car" },
+    // Task 5: own grey styles, never mixed with the four groups (light grey
+    // passes the CVD and normal-vision checks against all four colours)
+    { id: "undetermined-legs-not-ok", shape: "nodata", fill: "#d4d4d0", label: "No full round trip by public transport" },
+    { id: "not-applicable", shape: "square-suppressed", fill: "#ffffff", label: "Not enough data (too few homes to measure)" }
+  ];
+  var PRIORITY_CLASS_BY_ID = {};
+  PRIORITY_CLASSES.forEach(function (c) { PRIORITY_CLASS_BY_ID[c.id] = c; });
+
+  // Shown on S3 in the Priority areas view. Elvis's wording to edit.
+  var S3_NOTE_6PM = "At 6 pm nothing changes: people are home before the extra buses run. Switch to 8:30 pm to see the effect.";
+
+  var NO_TRIP_REASON = {
+    "unroutable": "unroutable (no service in any window)",
+    "outbound-no-service": "no scheduled outbound service",
+    "return-no-service": "no scheduled return service"
+  };
+
+  // ---- state --------------------------------------------------------------
+
+  // Opens on Priority areas / S0 (pre-demo, 28 Sep 2026).
+  var state = { view: "priority", scenario: "S0", window: "weekday_peak", metric: "travel_time_min", selectedSa1: null, legendCollapsed: false, techOpen: false, mapStyle: "areas", osmLayer: false, time: "6pm", colourBy: "status" };
+  var EXPORT_MODE = false;   // set by setupExport() for print/screen exports
+
+  var origins = MELTON_DATA.origins;
+  var scenarios = MELTON_DATA.scenarios;
+  var priority = MELTON_DATA.priority;
+  var HEADLINE_WINDOW = priority.headline_window;
+  var ACCESS_CUT = priority.cuts.access_complete_return_burden_min;
+  var DEPENDENCY_CUT = parseFloat(priority.cuts.dependency_zero_vehicle_share);
+  var ACCESS_CUT_N = priority.cuts.access_cut_n;
+  var DEPENDENCY_CUT_N = priority.cuts.dependency_cut_n;
+
+  // ---- Task 5: two times, one record shape. 6 pm = the Phase 8 priority
+  // block; 8:30 pm = the late-window view (R/07c_late_results.R). Both read
+  // from the export (R/08_export.R display block); nothing computed here.
+  var DISPLAY = MELTON_DATA.display;
+  var TIMES = [{ id: "6pm", label: "Leave hospital 6 pm" }, { id: "830pm", label: "Leave hospital 8:30 pm" }];
+  function timeLabel(t) { return t === "830pm" ? "leave hospital 8:30 pm" : "leave hospital 6 pm"; }
+  // 8:30 pm, S1-S4: colour by trip-home status vs today (default), or by
+  // priority group (second option). Today's 31 priority areas (6 pm cut)
+  // are outlined in the status view.
+  var STATUS_CLASSES = [
+    { id: "gained",  fill: "#0072B2", label: "Gets a trip home (had none today)" },
+    { id: "lost",    fill: "#D55E00", label: "Loses its trip home" },
+    { id: "both",    fill: "#f7f4ea", label: "Trip home both times" },
+    { id: "neither", fill: "#b9b9b4", label: "No trip home either way" }
+  ];
+  var STATUS_BY_ID = {};
+  STATUS_CLASSES.forEach(function (c) { c.shape = "circle"; STATUS_BY_ID[c.id] = c; });
+  var PRIORITY31 = {};
+  Object.keys(priority.scenarios.S0).forEach(function (id) { if (priority.scenarios.S0[id].quadrant === "high_high") PRIORITY31[id] = true; });
+  function useStatusView() {
+    return state.view === "priority" && state.time === "830pm" && state.scenario !== "S0" && state.colourBy === "status";
+  }
+  function statusFor(scen, sa1) {
+    var l = DISPLAY.late[scen][sa1], l0 = DISPLAY.late.S0[sa1];
+    if (l.restored === true) return "gained";
+    if (l.lost === true) return "lost";
+    return (l.trip_home && l0.trip_home) ? "both" : "neither";
+  }
+  function precFor(scen, sa1) {
+    if (state.time === "830pm") {
+      var l = DISPLAY.late[scen] && DISPLAY.late[scen][sa1];
+      if (!l) return null;
+      return { quadrant: l.quadrant, complete_return_burden_min: l.complete_return_burden_min, trip_home: l.trip_home,
+        moved_out: scen === "S0" ? null : l.moved_out === true, moved_in: scen === "S0" ? null : l.moved_in === true,
+        moved_in_kind: l.moved_in_kind || null, gained: l.restored === true, lost: l.lost === true };
+    }
+    var p = priority.scenarios[scen] && priority.scenarios[scen][sa1];
+    if (!p) return null;
+    var k = DISPLAY.moved_in_kind_6pm[scen];
+    return { quadrant: p.quadrant, complete_return_burden_min: p.complete_return_burden_min,
+      moved_out: p.moved_out === undefined ? null : p.moved_out, moved_in: p.moved_in === undefined ? null : p.moved_in,
+      moved_in_kind: (k && k[sa1]) || null, gained: p.gained_feasible_journey === true, lost: p.lost_feasible_journey === true };
+  }
+
+  // The window a view actually shows: the quadrant is defined on the
+  // headline window only (Q2), so the Priority areas view always uses it.
+  function effectiveWindow() {
+    return state.view === "priority" ? HEADLINE_WINDOW : state.window;
+  }
+  function windowLabel(id) {
+    var w = WINDOWS.filter(function (x) { return x.id === id; })[0];
+    return w ? w.label : id;
+  }
+  var allSa1Ids = Object.keys(origins);
+  var includedSa1Ids = allSa1Ids.filter(function (id) { return origins[id].analysis_included; });
+
+  // ---- projection: fixed across every scenario/window/metric --------------
+  // Lat correction: at ~-37.7 deg, 1 deg lon ~= 88km, 1 deg lat ~= 111km.
+  // A naive linear plot would stretch the LGA ~20% east-west.
+
+  var lonMin = Infinity, lonMax = -Infinity, latMin = Infinity, latMax = -Infinity;
+  function extend(lon, lat) {
+    if (lon < lonMin) lonMin = lon;
+    if (lon > lonMax) lonMax = lon;
+    if (lat < latMin) latMin = lat;
+    if (lat > latMax) latMax = lat;
+  }
+  // All 402 origins are plotted (not just analysis-included ones) -- a
+  // dependency-suppressed/undefined or population-excluded SA1 still needs
+  // to be visible with its own symbol, not silently dropped from the map.
+  allSa1Ids.forEach(function (id) { extend(origins[id].lon, origins[id].lat); });
+  Object.keys(DESTINATIONS).forEach(function (k) { extend(DESTINATIONS[k].lon, DESTINATIONS[k].lat); });
+  // Map context (R/08b_context_layers.R): the outline and stations are in
+  // the frame too, so the boundary and Sunshine station are not cut off.
+  // Context only -- drawn under the SA1 dots, never part of any result.
+  var CONTEXT = (typeof MELTON_CONTEXT !== "undefined") ? MELTON_CONTEXT : null;
+  if (CONTEXT) {
+    CONTEXT.melton_outline.forEach(function (ring) { ring.forEach(function (pt) { extend(pt[0], pt[1]); }); });
+    CONTEXT.stations.forEach(function (s) { extend(s.lon, s.lat); });
+  }
+
+  var meanLatRad = ((latMin + latMax) / 2) * Math.PI / 180;
+  var latCorrection = Math.cos(meanLatRad);
+
+  var svg = document.getElementById("map-svg");
+  var MARGIN = 30;
+  var mapView = { scale: 1, x: 0, y: 0 };
+  var dragState = null;
+  var suppressShapeClickUntil = 0;
+
+  function project(lon, lat) {
+    // the map's own box (same as #map-wrap in the app; narrower in print
+    // export layouts, where the legend has its own column)
+    var w = svg.clientWidth, h = svg.clientHeight;
+    var spanLon = (lonMax - lonMin) * latCorrection || 0.0001;
+    var spanLat = (latMax - latMin) || 0.0001;
+    var scale = Math.min((w - 2 * MARGIN) / spanLon, (h - 2 * MARGIN) / spanLat);
+    // Centre the content within the available area on whichever axis has
+    // slack, rather than anchoring to the top-left margin -- the LGA's
+    // aspect ratio rarely matches the panel's.
+    var offsetX = (w - spanLon * scale) / 2;
+    var offsetY = (h - spanLat * scale) / 2;
+    var baseX = offsetX + ((lon - lonMin) * latCorrection) * scale;
+    var baseY = offsetY + (latMax - lat) * scale;   // flip: north is up
+    return [baseX * mapView.scale + mapView.x, baseY * mapView.scale + mapView.y];
+  }
+
+  function zoomAt(factor, screenX, screenY) {
+    var oldScale = mapView.scale;
+    var newScale = Math.max(0.6, Math.min(8, oldScale * factor));
+    if (newScale === oldScale) return;
+    var ratio = newScale / oldScale;
+    mapView.x = screenX - (screenX - mapView.x) * ratio;
+    mapView.y = screenY - (screenY - mapView.y) * ratio;
+    mapView.scale = newScale;
+    render();
+  }
+
+  function zoomFromCentre(factor) {
+    var rect = svg.getBoundingClientRect();
+    zoomAt(factor, rect.width / 2, rect.height / 2);
+  }
+
+  function resetMapView() {
+    mapView = { scale: 1, x: 0, y: 0 };
+    render();
+  }
+
+  // ---- fixed per-metric colour domains, computed once ----------------------
+  // Domain must be identical everywhere a metric is shown -- see plan notes.
+  // B9's whole point is a before-vs-after intervention contrast; a rescaled
+  // ramp per view would make that comparison actively misleading. Computed
+  // across every scenario that carries real data (not a hardcoded S0/S4
+  // pair) so a newly-exported scenario is folded into the same fixed ramp
+  // automatically, never silently left out of it.
+
+  var domains = {};
+  METRICS.forEach(function (m) {
+    var values = [];
+    if (m.direction === "origin") {
+      // dependency metric: only dependency-eligible SA1s contribute -- a
+      // suppressed/undefined SA1's raw share is preserved for audit but
+      // never colour-rendered (it gets a distinct symbol instead), so it
+      // must not stretch the ramp either.
+      includedSa1Ids.forEach(function (id) {
+        if (origins[id].dependency_axis_status !== "dependency-eligible") return;
+        var v = origins[id][m.id];
+        if (v !== null && v !== undefined) values.push(v);
+      });
+    } else {
+      SCENARIOS.map(function (s) { return s.id; }).forEach(function (scenId) {
+        var scen = scenarios[scenId];
+        if (scen === "not_yet_computed") return;
+        WINDOWS.forEach(function (w) {
+          var byWindow = scen[w.id];
+          if (!byWindow) return;
+          includedSa1Ids.forEach(function (id) {
+            var rec = byWindow[id];
+            // journey_feasible (both legs ok), not one leg's own status --
+            // an individually-ok leg on an infeasible journey must not
+            // stretch the ramp either (B4).
+            if (!rec || rec.journey_feasible !== true) return;
+            var leg = rec[m.direction];
+            if (!leg) return;
+            var v = leg[m.id];
+            if (v !== null && v !== undefined) values.push(v);
+          });
+        });
+      });
+    }
+    if (values.length === 0) { domains[m.id] = [0, 1]; return; }
+    domains[m.id] = [Math.min.apply(null, values), Math.max.apply(null, values)];
+  });
+
+  // ---- colour ramps ---------------------------------------------------------
+  // Difficulty-axis metrics (time/count/distance) use one ramp; the
+  // dependency-axis metric (zero_vehicle_share) uses a visually distinct
+  // ramp -- a deliberate reminder that the two axes are never combined (B6).
+
+  var RAMP_DIFFICULTY = [[44,123,182], [255,255,191], [215,25,28]];   // blue - pale yellow - red
+  var RAMP_DEPENDENCY = [[247,247,247], [117,107,177]];               // pale grey - purple
+
+  function lerpColor(stops, t) {
+    t = Math.max(0, Math.min(1, t));
+    var n = stops.length - 1;
+    var seg = Math.min(Math.floor(t * n), n - 1);
+    var localT = (t * n) - seg;
+    var a = stops[seg], b = stops[seg + 1];
+    var r = Math.round(a[0] + (b[0] - a[0]) * localT);
+    var g = Math.round(a[1] + (b[1] - a[1]) * localT);
+    var bl = Math.round(a[2] + (b[2] - a[2]) * localT);
+    return "rgb(" + r + "," + g + "," + bl + ")";
+  }
+
+  function colourFor(metric, value) {
+    var d = domains[metric.id];
+    var t = d[1] === d[0] ? 0.5 : (value - d[0]) / (d[1] - d[0]);
+    var ramp = metric.group === "dependency" ? RAMP_DEPENDENCY : RAMP_DIFFICULTY;
+    return lerpColor(ramp, t);
+  }
+
+  // ---- controls: build once --------------------------------------------------
+
+  var viewButtonsEl = document.getElementById("view-buttons");
+  [{ id: "travel", label: "Travel times" }, { id: "priority", label: "Priority areas" }].forEach(function (v) {
+    var btn = document.createElement("button");
+    btn.className = "view-btn";
+    btn.textContent = v.label;
+    btn.dataset.id = v.id;
+    btn.addEventListener("click", function () { state.view = v.id; render(); });
+    viewButtonsEl.appendChild(btn);
+  });
+
+  // Map style: shaded Census-area shapes (default) or one dot per area at
+  // its population-weighted centre. Display only -- every result is
+  // computed from the population-weighted centre (B3) either way.
+  var SA1_POLYS = (typeof MELTON_SA1_POLYS !== "undefined") ? MELTON_SA1_POLYS : null;
+  // SA1s have no names: show the SA2 (suburb-level) name it sits in, plus its
+  // position among that SA2's Melton areas. The SA1 code stays alongside.
+  var SA1_NAMES = (typeof MELTON_SA1_NAMES !== "undefined") ? MELTON_SA1_NAMES : null;
+  function areaName(sa1) {
+    var n = SA1_NAMES && SA1_NAMES[sa1];
+    return n ? n.sa2 + " (area " + n.n + " of " + n.of + ")" : "SA1 " + sa1;
+  }
+  if (!SA1_POLYS) state.mapStyle = "dots";
+  // Suburb names: every ABS SA2 in the City of Melton, placed at the mean of
+  // its SA1 trip-start points. Display only.
+  var SA2_LABELS = [];
+  if (SA1_NAMES) {
+    var sa2acc = {};
+    allSa1Ids.forEach(function (id) {
+      var n = SA1_NAMES[id]; if (!n) return;
+      var a = sa2acc[n.sa2] || (sa2acc[n.sa2] = { lon: 0, lat: 0, k: 0 });
+      a.lon += origins[id].lon; a.lat += origins[id].lat; a.k++;
+    });
+    // label offsets (degrees) only where names collide with station labels
+    var SA2_NUDGE = { "Brookfield": [-0.024, 0.006], "Melton South - Weir Views": [-0.022, -0.016],
+      "Cobblebank - Strathtulloh": [0.028, -0.008], "Rockbank - Mount Cottrell": [0, 0.010] };
+    Object.keys(sa2acc).forEach(function (k) {
+      var d = SA2_NUDGE[k] || [0, 0];
+      SA2_LABELS.push({ name: k, lon: sa2acc[k].lon / sa2acc[k].k + d[0], lat: sa2acc[k].lat / sa2acc[k].k + d[1],
+        // on S4, Rockbank's name moves east, clear of the hospital-site label
+        s4: k === "Rockbank - Mount Cottrell" ? [0.005, -0.035] : null });
+    });
+  }
+  var styleButtonsEl = document.getElementById("style-buttons");
+  [{ id: "areas", label: "Areas", title: "Shade each Census area (SA1)" },
+   { id: "dots", label: "Dots", title: "One dot per area, at the population-weighted centre the trips start from" }].forEach(function (v) {
+    var btn = document.createElement("button");
+    btn.className = "view-btn";
+    btn.textContent = v.label;
+    btn.title = v.title;
+    btn.dataset.id = v.id;
+    if (v.id === "areas" && !SA1_POLYS) btn.disabled = true;
+    btn.addEventListener("click", function () { state.mapStyle = v.id; render(); });
+    styleButtonsEl.appendChild(btn);
+  });
+
+  // Task 4: known path-data (OSM) issues, off by default. Read from existing
+  // export flags only (R/08_export.R); nothing recomputed or filled here.
+  var layerButtonsEl = document.getElementById("layer-buttons");
+  var osmBtn = document.createElement("button");
+  osmBtn.className = "view-btn";
+  osmBtn.textContent = "Path data gaps";
+  osmBtn.title = "Mark areas where the walking-path data (OpenStreetMap) is known to cause problems";
+  osmBtn.addEventListener("click", function () { state.osmLayer = !state.osmLayer; render(); });
+  layerButtonsEl.appendChild(osmBtn);
+  function osmFlags(sa1) {
+    var o = origins[sa1], f = [];
+    if (o.osm_unroutable === true) f.push("No route found from this area (path data gap)");
+    if (o.osm_cap_bound === true) f.push("Walk to the nearest stop is over 30 min on the mapped paths");
+    if (o.rural_edge === true) f.push("Rural edge: homes spread far from the area centre");
+    return f;
+  }
+  function osmOverlay(poly, x, y) {
+    if (poly) return svgEl("path", { d: poly.map(function (r) { return pathFrom(r, true); }).join(""),
+      fill: "url(#hatch-osm)", stroke: "#000", "stroke-width": 1.6, "stroke-dasharray": "4 3", "fill-rule": "evenodd",
+      "pointer-events": "none" });
+    return svgEl("rect", { x: x - 7, y: y - 7, width: 14, height: 14, fill: "none", stroke: "#000",
+      "stroke-width": 1.6, "stroke-dasharray": "3 2", "pointer-events": "none" });
+  }
+  function osmLegendHtml() {
+    var n = { u: 0, c: 0, r: 0, any: 0 };
+    allSa1Ids.forEach(function (id) {
+      var o = origins[id];
+      if (o.osm_unroutable === true) n.u++;
+      if (o.osm_cap_bound === true) n.c++;
+      if (o.rural_edge === true) n.r++;
+      if (osmFlags(id).length) n.any++;
+    });
+    return '<div class="status-key" style="margin-top:6px;"><div class="legend-title">Path data gaps (' + n.any + ' areas)</div>' +
+      '<div class="status-row"><svg width="14" height="14" style="flex:0 0 auto"><rect x="1" y="1" width="12" height="12" fill="url(#hatch-osm-key)" stroke="#000" stroke-dasharray="3 2"/></svg>' +
+      '<span class="lbl">Results here are less certain. Walking paths are missing or thin in the map data. No paths were added.</span></div>' +
+      '<div class="status-row"><span class="lbl">No route found</span><span class="cnt">' + n.u + '</span></div>' +
+      '<div class="status-row"><span class="lbl">Walk to a stop over 30 min</span><span class="cnt">' + n.c + '</span></div>' +
+      '<div class="status-row"><span class="lbl">Rural edge</span><span class="cnt">' + n.r + '</span></div>' +
+      '<svg width="0" height="0" style="position:absolute"><defs>' + hatchPatternSvg("hatch-osm-key") + '</defs></svg></div>';
+  }
+  function hatchPatternSvg(id) {
+    return '<pattern id="' + id + '" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">' +
+      '<line x1="0" y1="0" x2="0" y2="6" stroke="#000" stroke-width="1.2" stroke-opacity="0.55"/></pattern>';
+  }
+
+  var scenarioButtonsEl = document.getElementById("scenario-buttons");
+  SCENARIOS.forEach(function (s) {
+    var btn = document.createElement("button");
+    btn.className = "scenario-btn";
+    btn.textContent = s.label;
+    btn.dataset.id = s.id;
+    if (scenarios[s.id] === "not_yet_computed") {
+      btn.disabled = true;
+      btn.title = "Not yet computed — R/06_scenarios.R hasn't built this scenario yet.";
+    }
+    btn.addEventListener("click", function () { state.scenario = s.id; render(); });
+    scenarioButtonsEl.appendChild(btn);
+  });
+
+  var windowButtonsEl = document.getElementById("window-buttons");
+  WINDOWS.forEach(function (w) {
+    var btn = document.createElement("button");
+    btn.className = "window-btn";
+    btn.textContent = w.label;
+    btn.dataset.id = w.id;
+    btn.addEventListener("click", function () { state.window = w.id; render(); });
+    windowButtonsEl.appendChild(btn);
+  });
+
+  var timeButtonsEl = document.getElementById("time-buttons");
+  TIMES.forEach(function (t) {
+    var btn = document.createElement("button");
+    btn.className = "window-btn";
+    btn.textContent = t.label;
+    btn.dataset.id = t.id;
+    btn.addEventListener("click", function () { state.time = t.id; render(); });
+    timeButtonsEl.appendChild(btn);
+  });
+
+  var colourButtonsEl = document.getElementById("colour-buttons");
+  [{ id: "status", label: "Trip home vs today" }, { id: "priority", label: "Priority group" }].forEach(function (c) {
+    var btn = document.createElement("button");
+    btn.className = "window-btn";
+    btn.textContent = c.label;
+    btn.dataset.id = c.id;
+    btn.addEventListener("click", function () { state.colourBy = c.id; render(); });
+    colourButtonsEl.appendChild(btn);
+  });
+
+  var metricSelectEl = document.getElementById("metric-select");
+  METRICS.forEach(function (m) {
+    var opt = document.createElement("option");
+    opt.value = m.id;
+    opt.textContent = m.label;
+    metricSelectEl.appendChild(opt);
+  });
+  metricSelectEl.addEventListener("change", function () { state.metric = metricSelectEl.value; render(); });
+
+  document.getElementById("legend").addEventListener("click", function (event) {
+    var t = event.target;
+    if (!t || !t.getAttribute || t.getAttribute("data-action") !== "toggle-legend") return;
+    state.legendCollapsed = !state.legendCollapsed;
+    // full render: the legend column collapses, so the map re-fits to the new width
+    render();
+    var tb = document.querySelector("#legend .legend-toggle");
+    if (tb) tb.focus();
+  });
+
+  document.getElementById("zoom-in").addEventListener("click", function () { zoomFromCentre(1.4); });
+  document.getElementById("zoom-out").addEventListener("click", function () { zoomFromCentre(1 / 1.4); });
+  document.getElementById("zoom-reset").addEventListener("click", resetMapView);
+
+  svg.addEventListener("wheel", function (event) {
+    event.preventDefault();
+    var rect = svg.getBoundingClientRect();
+    zoomAt(event.deltaY < 0 ? 1.18 : 1 / 1.18, event.clientX - rect.left, event.clientY - rect.top);
+  }, { passive: false });
+
+  svg.addEventListener("dblclick", function (event) {
+    event.preventDefault();
+    var rect = svg.getBoundingClientRect();
+    zoomAt(1.4, event.clientX - rect.left, event.clientY - rect.top);
+  });
+
+  svg.addEventListener("pointerdown", function (event) {
+    if (event.button !== 0) return;
+    dragState = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, travel: 0, downTarget: event.target };
+    try { svg.setPointerCapture(event.pointerId); } catch (e) { /* synthetic pointer */ }
+    svg.classList.add("dragging");
+  });
+
+  svg.addEventListener("pointermove", function (event) {
+    if (!dragState || dragState.id !== event.pointerId) return;
+    var dx = event.clientX - dragState.x;
+    var dy = event.clientY - dragState.y;
+    if (Math.abs(dx) + Math.abs(dy) === 0) return;
+    mapView.x += dx;
+    mapView.y += dy;
+    dragState.x = event.clientX;
+    dragState.y = event.clientY;
+    dragState.travel += Math.abs(dx) + Math.abs(dy);
+    if (dragState.travel > 3) dragState.moved = true;   // a small wobble is still a click
+    render();
+  });
+
+  // Selection: a press-and-release without dragging selects the SA1 it
+  // started on, or clears the selection if it started on empty map. Decided
+  // here from the pointerdown target, not from `click`, because pointer
+  // capture (for dragging) can retarget the click to the <svg> itself.
+  function finishDrag(event) {
+    if (!dragState || dragState.id !== event.pointerId) return;
+    var wasClick = !dragState.moved && event.type === "pointerup";
+    var downTarget = dragState.downTarget;
+    if (dragState.moved) suppressShapeClickUntil = Date.now() + 250;
+    dragState = null;
+    svg.classList.remove("dragging");
+    try { if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId); } catch (e) { /* synthetic pointer */ }
+    if (wasClick) selectSa1(downTarget && downTarget.getAttribute ? downTarget.getAttribute("data-sa1") : null);
+  }
+  svg.addEventListener("pointerup", finishDrag);
+  svg.addEventListener("pointercancel", finishDrag);
+
+  function selectSa1(sa1) {
+    state.selectedSa1 = sa1 || null;
+    render();
+    if (!state.selectedSa1) clearDetail();
+  }
+
+  // "2026-09-28T19:29:58+1000" -> "28 Sep 2026, 7:29 pm". Parsed by hand:
+  // the export's "+1000" offset (no colon) is not portable to Date().
+  function readableTimestamp(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(s || "");
+    if (!m) return s || "unknown";
+    var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    var h = parseInt(m[4], 10), ampm = h < 12 ? "am" : "pm";
+    var h12 = h % 12 === 0 ? 12 : h % 12;
+    return parseInt(m[3], 10) + " " + MONTHS[parseInt(m[2], 10) - 1] + " " + m[1] + ", " + h12 + ":" + m[5] + " " + ampm;
+  }
+  document.getElementById("generated-note").textContent =
+    "Data generated " + readableTimestamp(MELTON_DATA.generated) + ".";
+  document.getElementById("app-footer").textContent =
+    "Melton → Sunshine Hospital capstone prototype (GEOM30012). Runs offline. " +
+    "All five scenarios calculated for all 402 Melton Census areas from one locked timetable snapshot (August 2026).";
+
+  // ---- render ---------------------------------------------------------------
+
+  // symbolKind: "ok" (difficulty metrics) / "dependency-eligible" (dependency
+  // metric) means "draw a ramp-coloured circle"; anything else names the
+  // fixed-appearance status shape to draw instead (see JOURNEY_STATUS_META /
+  // DEPENDENCY_AXIS_META). journey_feasible -- not either leg's own
+  // status_label -- gates every difficulty metric (B4): a leg that is
+  // individually "ok" on an infeasible journey must never read as feasible.
+  function metricRecord(sa1) {
+    var m = METRICS.filter(function (x) { return x.id === state.metric; })[0];
+    if (m.direction === "origin") {
+      var o = origins[sa1];
+      var axisStatus = o.dependency_axis_status;
+      if (axisStatus !== "dependency-eligible") {
+        return { metric: m, value: null, ok: false, symbolKind: axisStatus };
+      }
+      var v = o[m.id];
+      return { metric: m, value: v, ok: v !== null && v !== undefined, symbolKind: "dependency-eligible" };
+    }
+    var scen = scenarios[state.scenario];
+    if (scen === "not_yet_computed") return { metric: m, value: null, ok: false, symbolKind: null };
+    var byWindow = scen[state.window];
+    var rec = byWindow ? byWindow[sa1] : null;
+    if (!rec) return { metric: m, value: null, ok: false, symbolKind: null };
+    if (rec.journey_feasible !== true) {
+      return { metric: m, value: null, ok: false, symbolKind: rec.journey_status, journeyStatus: rec.journey_status };
+    }
+    var leg = rec[m.direction];
+    var val = leg ? leg[m.id] : null;
+    return { metric: m, value: val, ok: val !== null && val !== undefined, symbolKind: "ok", journeyStatus: rec.journey_status };
+  }
+
+  // ---- shape drawing ---------------------------------------------------------
+
+  function ensureDefs() {
+    var defs = document.createElementNS(SVGNS, "defs");
+    var pattern = document.createElementNS(SVGNS, "pattern");
+    pattern.setAttribute("id", "hatch-suppressed");
+    pattern.setAttribute("width", "4");
+    pattern.setAttribute("height", "4");
+    pattern.setAttribute("patternUnits", "userSpaceOnUse");
+    pattern.setAttribute("patternTransform", "rotate(45)");
+    var bg = document.createElementNS(SVGNS, "rect");
+    bg.setAttribute("width", "4"); bg.setAttribute("height", "4"); bg.setAttribute("fill", "#ffffff");
+    var line = document.createElementNS(SVGNS, "line");
+    line.setAttribute("x1", "0"); line.setAttribute("y1", "0"); line.setAttribute("x2", "0"); line.setAttribute("y2", "4");
+    line.setAttribute("stroke", "#8a8a86"); line.setAttribute("stroke-width", "2");
+    pattern.appendChild(bg);
+    pattern.appendChild(line);
+    defs.appendChild(pattern);
+    var tmp = document.createElementNS(SVGNS, "svg");
+    tmp.innerHTML = hatchPatternSvg("hatch-osm");
+    defs.appendChild(tmp.firstChild);
+    svg.appendChild(defs);
+  }
+
+  function polygonPoints(pts) {
+    return pts.map(function (p) { return p[0] + "," + p[1]; }).join(" ");
+  }
+
+  // Draws one origin's status shape at (cx, cy). `kind` is either "circle"
+  // (ramp-coloured feasible/eligible marker) or one of the fixed status
+  // shape names -- shape AND fill both carry the distinction, never colour
+  // alone.
+  function drawShape(kind, cx, cy, fill, stroke) {
+    var el, r;
+    switch (kind) {
+      case "diamond":
+        r = 5.2;
+        el = document.createElementNS(SVGNS, "polygon");
+        el.setAttribute("points", polygonPoints([[cx, cy - r], [cx + r, cy], [cx, cy + r], [cx - r, cy]]));
+        break;
+      case "triangle-up":
+        r = 5.6;
+        el = document.createElementNS(SVGNS, "polygon");
+        el.setAttribute("points", polygonPoints([[cx, cy - r], [cx + r, cy + r * 0.8], [cx - r, cy + r * 0.8]]));
+        break;
+      case "triangle-down":
+        r = 5.6;
+        el = document.createElementNS(SVGNS, "polygon");
+        el.setAttribute("points", polygonPoints([[cx, cy + r], [cx + r, cy - r * 0.8], [cx - r, cy - r * 0.8]]));
+        break;
+      case "square-suppressed":
+      case "square-undefined":
+        r = 4.6;
+        el = document.createElementNS(SVGNS, "rect");
+        el.setAttribute("x", cx - r); el.setAttribute("y", cy - r);
+        el.setAttribute("width", 2 * r); el.setAttribute("height", 2 * r);
+        el.setAttribute("rx", 1);
+        if (kind === "square-undefined") { el.setAttribute("stroke-dasharray", "2,1.5"); }
+        break;
+      default:
+        r = 4.2;
+        el = document.createElementNS(SVGNS, "circle");
+        el.setAttribute("cx", cx); el.setAttribute("cy", cy); el.setAttribute("r", r);
+    }
+    el.setAttribute("fill", kind === "square-suppressed" ? "url(#hatch-suppressed)" : fill);
+    el.setAttribute("stroke", stroke || "#ffffff88");
+    el.setAttribute("stroke-width", stroke ? 1 : 0.5);
+    el.classList.add("origin-shape");
+    return el;
+  }
+
+  // One Census area as a filled shape. Holes are separate rings (evenodd).
+  function drawArea(rings, kind, fill) {
+    var el = document.createElementNS(SVGNS, "path");
+    el.setAttribute("d", rings.map(function (r) { return pathFrom(r, true); }).join(""));
+    el.setAttribute("fill-rule", "evenodd");
+    el.setAttribute("fill", kind === "square-suppressed" ? "url(#hatch-suppressed)" : fill);
+    // Status areas (no trip, no service, unroutable) carry no result, and
+    // the largest of them are rural areas with few residents: shown as a
+    // faint tint so their size does not dominate the map.
+    if (kind !== "circle" && kind !== "square-suppressed" && kind !== "nodata") el.setAttribute("fill-opacity", "0.28");
+    el.setAttribute("class", "sa1-area");
+    return el;
+  }
+  function areaOutline(rings) {
+    var el = svgEl("path", { d: rings.map(function (r) { return pathFrom(r, true); }).join(""),
+      fill: "none", stroke: "#1f1f1d", "stroke-width": 2.4, "fill-rule": "evenodd" });
+    return el;
+  }
+
+  function selectionRing(cx, cy) {
+    var ring = document.createElementNS(SVGNS, "circle");
+    ring.setAttribute("cx", cx); ring.setAttribute("cy", cy); ring.setAttribute("r", 8);
+    ring.setAttribute("class", "selection-ring");
+    return ring;
+  }
+
+  // Moved out = circle ring, moved in = square ring: distinguished by shape,
+  // not colour. Drawn over the class symbol; never intercepts clicks.
+  function movedRing(dir, cx, cy) {
+    var el;
+    if (dir === "out") {
+      el = document.createElementNS(SVGNS, "circle");
+      el.setAttribute("cx", cx); el.setAttribute("cy", cy); el.setAttribute("r", 7.5);
+    } else if (dir === "gained") {
+      el = document.createElementNS(SVGNS, "polygon");
+      el.setAttribute("points", polygonPoints([[cx, cy - 6.5], [cx + 6, cy + 4.5], [cx - 6, cy + 4.5]]));
+    } else if (dir === "lost") {
+      el = document.createElementNS(SVGNS, "path");
+      el.setAttribute("d", "M" + (cx - 5) + "," + (cy - 5) + "L" + (cx + 5) + "," + (cy + 5) + "M" + (cx + 5) + "," + (cy - 5) + "L" + (cx - 5) + "," + (cy + 5));
+    } else {
+      el = document.createElementNS(SVGNS, "rect");
+      el.setAttribute("x", cx - 6.5); el.setAttribute("y", cy - 6.5);
+      el.setAttribute("width", 13); el.setAttribute("height", 13);
+    }
+    el.setAttribute("fill", "none");
+    el.setAttribute("stroke", "#000000");
+    el.setAttribute("stroke-width", 2);
+    if (dir === "in-newly") el.setAttribute("stroke-dasharray", "4 2.5");
+    el.setAttribute("pointer-events", "none");
+    return el;
+  }
+  function largeAreaText(sa1) {
+    var n = DISPLAY.large_areas[sa1].carfree_households_rounded;
+    return "1 rural area, " + (n === 0 || n === null || n === undefined ? "fewer than 10" : "about " + fmtInt(n)) + " homes with no car";
+  }
+  function largeAreaLabel(sa1, p) {
+    // centre of the shape's largest ring (not the trip-start point, which can
+    // sit on the edge of a rural shape); two short lines
+    var x = p[0], y = p[1], rings = SA1_POLYS && state.mapStyle === "areas" ? SA1_POLYS[sa1] : null;
+    if (rings) {
+      var big = rings.reduce(function (a, r) { return r.length > a.length ? r : a; }, []);
+      var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      big.forEach(function (pt) { var q = project(pt[0], pt[1]); x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); });
+      // just outside the shape's west edge (empty rural fringe); if the text
+      // would not fit there, above the shape instead
+      var longest = Math.max.apply(null, largeAreaText(sa1).split(", ").map(function (s) { return s.length; }));
+      var needW = longest * (EXPORT_MODE ? 7.6 : 6.8);
+      var anchor = "end";
+      if (x0 - 8 - needW > 4) { x = x0 - 8; y = (y0 + y1) / 2; }
+      else { x = (x0 + x1) / 2; y = y0 - 20; anchor = "middle"; }
+    }
+    var parts = largeAreaText(sa1).split(", ");
+    var t = svgEl("text", { x: x, y: y - 4, "text-anchor": rings ? anchor : "middle", "class": "ctx-large", "data-large": sa1 });
+    parts.forEach(function (s, i) {
+      var ts = svgEl("tspan", { x: x, dy: i === 0 ? 0 : 15 });
+      ts.textContent = s + (i < parts.length - 1 ? "," : "");
+      t.appendChild(ts);
+    });
+    return t;
+  }
+  function markerSwatch(dir) {
+    var inner = dir === "gained" ? '<polygon points="7,1 13,12 1,12" fill="none" stroke="#000" stroke-width="1.6"/>'
+      : '<path d="M2,2L12,12M12,2L2,12" stroke="#000" stroke-width="1.8"/>';
+    return '<svg width="14" height="14" style="flex:0 0 auto">' + inner + '</svg>';
+  }
+
+  // B14 (Q8, decided by Elvis 28 Sep 2026): a rural-edge SA1 is one whose
+  // population-weighted centroid is >= 1,000 m from its geometric centroid
+  // (origins[..].rural_edge, computed in R/08_export.R). Flagged, never
+  // excluded. The map flags a rural-edge SA1 that the scenario changes
+  // (moved out / moved in / gained or lost a complete trip, vs S0) -- the
+  // SA1s whose result the centroid question bears on. Every SA1's offset
+  // and rural-edge status are shown in the detail panel.
+  var B14_CUTOFF_M = priority.b14_cutoff_m;
+  function ruralEdgeFlagged(sa1, prec) {
+    if (state.scenario === "S0" || !prec) return false;
+    if (origins[sa1].rural_edge !== true) return false;
+    return prec.moved_out === true || prec.moved_in === true || prec.gained === true || prec.lost === true;
+  }
+
+  function fmtInt(v) {
+    return Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  function ruralFlag(cx, cy, o) {
+    var g = document.createElementNS(SVGNS, "g");
+    var x = cx + 6, y = cy - 3;
+    var pole = document.createElementNS(SVGNS, "line");
+    pole.setAttribute("x1", x); pole.setAttribute("y1", y);
+    pole.setAttribute("x2", x); pole.setAttribute("y2", y - 11);
+    pole.setAttribute("stroke", "#000"); pole.setAttribute("stroke-width", 1.4);
+    var pennant = document.createElementNS(SVGNS, "polygon");
+    pennant.setAttribute("points", polygonPoints([[x, y - 11], [x + 7, y - 8.5], [x, y - 6]]));
+    pennant.setAttribute("fill", "#000"); pennant.setAttribute("stroke", "#fff"); pennant.setAttribute("stroke-width", 0.6);
+    g.appendChild(pole); g.appendChild(pennant);
+    g.appendChild(svgTitle("Rural-edge flag: homes spread " + fmt(o.centroid_dist_m) + " m (≥ " + fmtInt(B14_CUTOFF_M) + " m)"));
+    return g;
+  }
+
+  function scenarioLabel(id) {
+    var s = SCENARIOS.filter(function (x) { return x.id === id; })[0];
+    return s ? s.label : id;
+  }
+
+  function legendHead() {
+    return '<div class="legend-head"><div class="legend-title">' + scenarioLabel(state.scenario) +
+      ', ' + timeLabel(state.time) + '</div>' +
+      '<button type="button" class="legend-toggle" data-action="toggle-legend" aria-expanded="' + !state.legendCollapsed + '">' +
+      (state.legendCollapsed ? "Show legend" : "Hide legend") + '</button></div>';
+  }
+  var RURAL_NOTE = '<div class="rural-note">Large grey areas are rural, with few homes.</div>';
+  function renderStatusLegend() {
+    var el = document.getElementById("legend");
+    var counts = {}, nP = 0;
+    allSa1Ids.forEach(function (id) {
+      var k = statusFor(state.scenario, id);
+      counts[k] = (counts[k] || 0) + 1;
+      if (PRIORITY31[id]) nP++;
+    });
+    var html = legendHead();
+    if (state.legendCollapsed) { el.innerHTML = html; return; }
+    html += '<div class="view-note" style="margin-top:0;border:0;font-style:normal;color:var(--text)">Trip home leaving hospital at 8:30 pm, compared with today at the same time.' +
+      (state.scenario === "S4" ? " Today = from Sunshine Hospital; S4 = from the Cobblebank site." : "") + '</div>';
+    html += '<div class="status-key">';
+    STATUS_CLASSES.forEach(function (c) {
+      html += '<div class="status-row" data-k="' + c.id + '" data-n="' + (counts[c.id] || 0) + '"><span class="swatch" style="background:' + c.fill +
+        ';border:1px solid #8a8a86"></span><span class="lbl">' + c.label + '</span><span class="cnt">' + (counts[c.id] || 0) + ' areas</span></div>';
+    });
+    html += '<div class="status-row" data-k="priority31" data-n="' + nP + '"><span class="swatch" style="background:none;border:2px solid #1f1f1d"></span>' +
+      '<span class="lbl">Outlined: priority area today (6 pm)</span><span class="cnt">' + nP + ' areas</span></div>';
+    html += '</div><div class="rural-note">Large shapes are rural areas, with few homes.</div>';
+    html += contextLegendRows(destinationFor(state.scenario).label);
+    el.innerHTML = html;
+  }
+
+  function renderPriorityLegend() {
+    if (useStatusView()) { renderStatusLegend(); return; }
+    var el = document.getElementById("legend");
+    var counts = {}, nOut = 0, nInW = 0, nInN = 0, nGain = 0, nLost = 0, nFlag = 0;
+    allSa1Ids.forEach(function (id) {
+      var r = precFor(state.scenario, id);
+      if (!r) return;
+      counts[r.quadrant] = (counts[r.quadrant] || 0) + 1;
+      if (EXPORT_MODE && !PRIORITY31[id]) return;   // exports draw symbols for the 31 only
+      if (r.moved_out === true) nOut++;
+      if (r.moved_in === true) { if (r.moved_in_kind === "newly") nInN++; else nInW++; }
+      else if (r.gained) nGain++;
+      if (r.lost) nLost++;
+      if (ruralEdgeFlagged(id, r)) nFlag++;
+    });
+    // Collapse/expand toggle (default expanded). The click is handled by
+    // one delegated listener on #legend, since innerHTML is rebuilt here.
+    var html = legendHead();
+    if (state.legendCollapsed) { el.innerHTML = html; return; }
+    if (state.scenario === "S3" && state.time === "6pm") html += '<div class="scenario-note">' + S3_NOTE_6PM + '</div>';
+    if (state.time === "830pm" && state.scenario !== "S0") {
+      // why the priority count can rise at 8:30 pm (numbers from the data)
+      var n0 = 0;
+      allSa1Ids.forEach(function (id) { var r0 = precFor("S0", id); if (r0 && r0.quadrant === "high_high") n0++; });
+      if ((counts.high_high || 0) > n0) {
+        var nNew = 0;
+        allSa1Ids.forEach(function (id) { var r = precFor(state.scenario, id); if (r && r.moved_in === true && r.moved_in_kind === "newly") nNew++; });
+        html += '<div class="why-note">More priority areas here (' + (counts.high_high || 0) + ') than today at 8:30 pm (' + n0 + '). ' +
+          plural(nNew, "area", "areas") + ' had no trip home today and now have one, but it is long.</div>';
+      }
+    }
+    html += '<div class="status-key">';
+    PRIORITY_CLASSES.forEach(function (c) {
+      var sw = c.shape === "circle" ? '<span class="swatch swatch-circle" style="background:' + c.fill + '"></span>'
+        : c.shape === "nodata" ? '<span class="swatch swatch-nodata"></span>'
+        : '<span class="swatch swatch-square-suppressed"></span>';
+      html += '<div class="status-row">' + sw + '<span class="lbl">' + c.label + '</span><span class="cnt">' + (counts[c.id] || 0) + ' areas</span></div>';
+    });
+    html += '</div>' + RURAL_NOTE;
+
+    if (state.scenario !== "S0") {
+      if (EXPORT_MODE) html += '<div class="rural-note">Symbols shown for today’s ' + Object.keys(PRIORITY31).length + ' priority areas only.</div>';
+      html += '<div class="status-key" style="margin-top:6px;">' +
+        '<div class="status-row"><span class="swatch swatch-ring"></span><span class="lbl">Helped: left the priority group (vs today)</span><span class="cnt">' + nOut + '</span></div>' +
+        '<div class="status-row"><span class="swatch swatch-sqring"></span><span class="lbl">Got worse: joined the priority group</span><span class="cnt">' + nInW + '</span></div>' +
+        '<div class="status-row"><span class="swatch swatch-sqring-dash"></span><span class="lbl">Now reachable, but trip still long</span><span class="cnt">' + nInN + '</span></div>' +
+        '<div class="status-row">' + markerSwatch("gained") + '<span class="lbl">' + (state.time === "830pm" ? "Gets a trip home (had none), other areas" : "Gets a complete trip (had none), other areas") + '</span><span class="cnt">' + nGain + '</span></div>' +
+        '<div class="status-row">' + markerSwatch("lost") + '<span class="lbl">' + (state.time === "830pm" ? "Loses its trip home" : "Loses its complete trip") + '</span><span class="cnt">' + nLost + '</span></div>' +
+        '<div class="status-row"><svg width="11" height="13" style="flex:0 0 auto"><line x1="2" y1="13" x2="2" y2="1" stroke="#000" stroke-width="1.4"/><polygon points="2,1 9,3.5 2,6" fill="#000"/></svg>' +
+        '<span class="lbl">Rural-edge area (homes spread ' + fmtInt(B14_CUTOFF_M) + ' m or more from the area centre): result less certain. Flagged, not excluded.</span><span class="cnt">' + nFlag + '</span></div>' +
+        '</div>';
+    }
+
+    html += '<details class="cut-details"' + (EXPORT_MODE ? ' open' : '') + '><summary>About the two lines</summary><div class="cut-note">' +
+      '<div><b>Access-difficulty cut: ' + fmt(ACCESS_CUT) + ' min</b> for the full round trip (trip there, including waiting, plus trip home). ' +
+      'This is the middle value for Melton today, leaving hospital at 6 pm (' + ACCESS_CUT_N + ' areas). The same line is used for every scenario and both times.</div>' +
+      '<div style="margin-top:3px;"><b>Dependency cut: ' + (DEPENDENCY_CUT * 100).toFixed(1) + '% of households have no car.</b> ' +
+      'The top 10% of the ' + DEPENDENCY_CUT_N + ' areas with a car-ownership measure, kept the same.</div>' +
+      '<div style="margin-top:3px;">Priority area = above both lines. These lines sort areas into groups; they are not a judgement of what trip is reasonable.</div>' +
+      '</div></details>';
+
+    html += contextLegendRows(destinationFor(state.scenario).label);
+    // exports: drop symbol rows that have nothing on the map (count 0)
+    if (EXPORT_MODE) html = html.replace(/<div class="status-row">(?:(?!<div class="status-row">)[\s\S])*?<span class="cnt">0<\/span><\/div>/g, "");
+    el.innerHTML = html;
+  }
+
+  function signedMin(v) {
+    if (v === null || v === undefined) return "–";
+    var r = Math.round(v);
+    return (r > 0 ? "+" : r < 0 ? "−" : "") + Math.abs(r);
+  }
+
+  function renderRankingPanel(isPriority) {
+    var el = document.getElementById("ranking-panel");
+    if (!isPriority) { el.style.display = "none"; return; }
+    if (state.time === "830pm") {
+      var lh = '<h2>Leaving hospital at 8:30 pm</h2><div class="sub">Compared with today at the same time. The same two lines as at 6 pm.</div>' +
+        '<table class="rank"><tr><th></th><th>Helped</th><th>Got worse</th><th>Reach&shy;able, long</th><th>Trip home gained</th><th>Trip home lost</th></tr>';
+      DISPLAY.late_summary.forEach(function (r) {
+        lh += '<tr' + (r.scenario === state.scenario ? ' class="current"' : '') + '><td title="' + scenarioLabel(r.scenario) + '">' + r.scenario + '</td><td>' + r.moved_out +
+          '</td><td>' + r.moved_in_worse + '</td><td>' + r.moved_in_newly_reachable_long + '</td><td>' + r.restored_areas + '</td><td>' + r.lost_areas + '</td></tr>';
+      });
+      el.innerHTML = lh + '</table>';
+      el.style.display = "block";
+      return;
+    }
+    var rows = priority.ranking;
+    var html = '<h2>Which change helps most?</h2>' +
+      '<div class="sub">Number of priority areas each change moves out of, and into, the priority group compared with today (leaving hospital at 6 pm). An area only counts as moved out if its trip home gets shorter and neither leg gets longer. The columns are counted separately.</div>' +
+      '<table class="rank"><tr><th></th><th>Helped</th><th>Homes with no car</th><th>Got worse</th><th>Reach&shy;able, long</th></tr>';
+    rows.forEach(function (r) {
+      var kinds = DISPLAY.moved_in_kind_6pm[r.scenario] || {}, nw = 0, nn = 0;
+      Object.keys(kinds).forEach(function (id) { if (kinds[id] === "newly") nn++; else nw++; });
+      html += '<tr' + (r.scenario === state.scenario ? ' class="current"' : '') + '><td title="' + scenarioLabel(r.scenario) + '">' + r.scenario +
+        '</td><td>' + r.moved_out + '</td><td>' + fmtInt(r.carfree_households_moved_out) + '</td><td>' + nw + '</td><td>' + nn + '</td></tr>';
+    });
+    html += '</table>';
+
+    html += '<div class="sub" style="margin-top:8px;">Also compared with today, for all areas (not part of the counts above):</div>' +
+      '<table class="rank"><tr><th>Scenario</th><th>Areas gaining a trip home</th><th>Areas losing a trip home</th><th>Typical change in round trip, min (middle half)</th></tr>';
+    rows.forEach(function (r) {
+      html += '<tr' + (r.scenario === state.scenario ? ' class="current"' : '') + '><td>' + r.scenario +
+        '</td><td>' + r.gained_feasible_journey + '</td><td>' + r.lost_feasible_journey +
+        '</td><td>' + signedMin(r.complete_return_delta_median) + '<div class="iqr">' + signedMin(r.complete_return_delta_q25) + ' to ' +
+        signedMin(r.complete_return_delta_q75) + '</div></td></tr>';
+    });
+    html += '</table>';
+    if (state.scenario === "S3") html += '<div class="s3-note">' + S3_NOTE_6PM + '</div>';
+    el.innerHTML = html;
+    el.style.display = "block";
+  }
+
+  // ---- Task 5: result cards. Every number comes from MELTON_DATA.display.cards
+  // (R/08_export.R, read from the result files); only the words are fixed here.
+  var CARD_TITLES = { S0: "Today", S1: "S1 More frequent buses", S2: "S2 Better bus–train timing", S3: "S3 Later evening buses", S4: "S4 Cobblebank hospital" };
+  function plural(n, one, many) { return fmtInt(n) + " " + (n === 1 ? one : many); }
+  function cardText(id) {
+    var c = DISPLAY.cards[id];
+    if (id === "S0") return "Today: " + plural(c.priority_areas, "priority area", "priority areas") + " (about " + fmtInt(c.carfree_households) + " homes with no car).";
+    if (id === "S1") return "6 pm: " + plural(c.helped_6pm, "area", "areas") + " helped (about " + fmtInt(c.households_6pm) + " homes with no car). " +
+      (c.helped_6pm_miss10 === 0 && c.helped_6pm_miss20 === 0 ? "Not kept if you miss one connection."
+        : fmtInt(Math.min(c.helped_6pm_miss10, c.helped_6pm_miss20)) + " kept if you miss one connection.");
+    if (id === "S2") return (c.helped_6pm === 0 && c.helped_830pm === 0 ? "No area helped. " : plural(c.helped_6pm, "area", "areas") + " helped at 6 pm. ") +
+      "At 6 pm, " + fmtInt(c.shorter_6pm) + " round trips get shorter and " + fmtInt(c.longer_6pm) + " get longer.";
+    if (id === "S3") return (c.helped_6pm === 0 && c.moved_in_6pm === 0 && c.changed_6pm === 0 ? "6 pm: no change. " : "6 pm: " + plural(c.helped_6pm, "area", "areas") + " helped. ") +
+      "8:30 pm: " + plural(c.priority_restored_830pm, "priority area gets", "priority areas get") + " a trip home (about " +
+      fmtInt(c.priority_restored_households_830pm) + " homes with no car)" + (c.restored_final_ride_routes === 1 ? ", all on one extra bus." : ".");
+    if (id === "S4") return "6 pm: " + plural(c.helped_6pm, "area", "areas") + " helped (about " + fmtInt(c.households_6pm) + " homes with no car). " +
+      "New site on today's network, not a future timetable." + (c.trip_home_longer_830pm > c.trip_home_shorter_830pm ? " At 8:30 pm many trips get longer." : "");
+    return "";
+  }
+  function renderCards() {
+    var el = document.getElementById("cards");
+    el.innerHTML = "";
+    SCENARIOS.forEach(function (s) {
+      var d = document.createElement("div");
+      d.className = "card" + (s.id === state.scenario ? " active" : "");
+      d.dataset.id = s.id;
+      d.innerHTML = '<div class="card-h">' + CARD_TITLES[s.id] + '</div><div class="card-t">' + cardText(s.id) + '</div>';
+      d.addEventListener("click", function () { state.scenario = s.id; render(); });
+      el.appendChild(d);
+    });
+  }
+
+  function render() {
+    // active-button state
+    Array.prototype.forEach.call(scenarioButtonsEl.children, function (b) {
+      b.classList.toggle("active", b.dataset.id === state.scenario);
+    });
+    var isPriority = state.view === "priority";
+    Array.prototype.forEach.call(viewButtonsEl.children, function (b) {
+      b.classList.toggle("active", b.dataset.id === state.view);
+    });
+    Array.prototype.forEach.call(styleButtonsEl.children, function (b) {
+      b.classList.toggle("active", b.dataset.id === state.mapStyle);
+    });
+    Array.prototype.forEach.call(windowButtonsEl.children, function (b) {
+      b.classList.toggle("active", b.dataset.id === effectiveWindow());
+      // Priority areas: the quadrant is defined on the headline window only
+      b.disabled = isPriority;
+      b.title = isPriority ? "Priority areas are defined on the " + windowLabel(HEADLINE_WINDOW) + " window only." : "";
+    });
+    // collapsed legend gives its column to the map; set before the map is drawn
+    document.getElementById("map-wrap").classList.toggle("legend-collapsed", isPriority && state.legendCollapsed && !EXPORT_MODE);
+    document.getElementById("window-group").style.display = isPriority ? "none" : "";
+    document.getElementById("metric-group").style.display = isPriority ? "none" : "";
+    document.getElementById("time-group").style.display = isPriority ? "" : "none";
+    document.getElementById("colour-group").style.display = (isPriority && state.time === "830pm" && state.scenario !== "S0") ? "" : "none";
+    Array.prototype.forEach.call(colourButtonsEl.children, function (b) { b.classList.toggle("active", b.dataset.id === state.colourBy); });
+    var statusView = useStatusView();
+    Array.prototype.forEach.call(timeButtonsEl.children, function (b) { b.classList.toggle("active", b.dataset.id === state.time); });
+    renderCards();
+    metricSelectEl.value = state.metric;
+    metricSelectEl.disabled = isPriority;
+
+    // The dependency metric is a static origin field -- it does not depend
+    // on any scenario's travel-time computation, so a not-yet-computed
+    // scenario must not hide its (suppressed/undefined/eligible) symbols.
+    var activeMetric = METRICS.filter(function (x) { return x.id === state.metric; })[0];
+    var isStub = (isPriority || activeMetric.direction !== "origin") && scenarios[state.scenario] === "not_yet_computed";
+    var banner = document.getElementById("stub-banner");
+    if (isStub) {
+      var label = SCENARIOS.filter(function (s) { return s.id === state.scenario; })[0].label;
+      banner.textContent = label + ": not yet computed — R/06_scenarios.R hasn't built this scenario yet. Origins shown unshaded.";
+      banner.style.display = "block";
+    } else {
+      banner.style.display = "none";
+    }
+
+    var scenMeta = SCENARIOS.filter(function (s) { return s.id === state.scenario; })[0];
+    document.getElementById("scenario-desc").innerHTML = "<b>" + scenMeta.label + ":</b> " + scenMeta.desc;
+
+    // clear svg
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    ensureDefs();
+
+    // map context, UNDER everything else (outline, rail, stations, places)
+    drawContext();
+
+    // destination marker: defined for every scenario (Sunshine Hospital for
+    // S0-S3, the Cobblebank site for S4 -- B13), shown regardless of whether
+    // that scenario's travel-time data has been computed yet. Drawn as a
+    // hospital symbol (red square, white cross) with its name.
+    var dest = destinationFor(state.scenario);
+    var dp = project(dest.lon, dest.lat);
+    var hospitalEl = hospitalSymbol(dp[0], dp[1], dest.label);
+    svg.appendChild(hospitalEl);
+
+    // Every one of the 402 origins is rendered -- a dependency-suppressed,
+    // dependency-undefined, or population-excluded SA1 still needs its own
+    // visible symbol, not to be silently dropped from the map.
+    var overlays = [], largeLabels = [];
+    allSa1Ids.forEach(function (sa1) {
+      var o = origins[sa1];
+      var p = project(o.lon, o.lat);
+      var kind, fill, stroke, title;
+
+      var prec = null;
+      if (isStub) {
+        kind = "circle"; fill = "#e6e6e2"; stroke = "#999";
+        title = sa1 + ": " + state.scenario + " not yet computed";
+      } else if (isPriority) {
+        prec = precFor(state.scenario, sa1);
+        var pc = statusView ? STATUS_BY_ID[statusFor(state.scenario, sa1)] : (prec ? PRIORITY_CLASS_BY_ID[prec.quadrant] : null);
+        if (pc) {
+          kind = pc.shape; fill = pc.fill; stroke = "#333333"; title = sa1 + ": " + pc.label;
+        } else {
+          kind = "circle"; fill = "#e6e6e2"; stroke = "#999"; title = sa1 + ": no data";
+        }
+      } else {
+        var rec = metricRecord(sa1);
+        if (rec.symbolKind === "ok" || rec.symbolKind === "dependency-eligible") {
+          if (rec.ok) {
+            kind = "circle"; fill = colourFor(rec.metric, rec.value);
+          } else {
+            // eligible for colour but this particular value is missing
+            // (e.g. metric-specific NA on an otherwise-feasible journey)
+            kind = "circle"; fill = "#e6e6e2"; stroke = "#999";
+          }
+          title = sa1;
+        } else {
+          var meta = JOURNEY_STATUS_META[rec.symbolKind] || DEPENDENCY_AXIS_META[rec.symbolKind];
+          if (meta) {
+            kind = meta.shape; fill = meta.fill; stroke = meta.stroke; title = sa1 + ": " + meta.label;
+          } else {
+            kind = "circle"; fill = "#e6e6e2"; stroke = "#999"; title = sa1 + ": no data";
+          }
+        }
+      }
+
+      var poly = (state.mapStyle === "areas" && SA1_POLYS) ? SA1_POLYS[sa1] : null;
+      var shapeEl = poly ? drawArea(poly, kind, fill) : drawShape(kind, p[0], p[1], fill, stroke);
+      if (poly && statusView) shapeEl.classList.add("status-area");
+      title = title.replace(sa1, areaName(sa1));
+      shapeEl.appendChild(svgTitle(title));
+      // selection is handled on pointerup (finishDrag -> selectSa1); hover
+      // only previews, and leaving restores the selected SA1 (or nothing)
+      shapeEl.setAttribute("data-sa1", sa1);
+      shapeEl.addEventListener("mouseenter", function () { if (!dragState) showDetail(sa1); });
+      shapeEl.addEventListener("mouseleave", function () { if (!dragState) restoreDetail(); });
+      svg.appendChild(shapeEl);
+
+      // Priority areas, S1-S4: moved out of / into the high-difficulty /
+      // high-dependency cell vs S0 (flags from R/phase8_ranking.R), and the
+      // B14 rural-edge flag -- see rurallyFlagged().
+      if (statusView) {
+        // today's priority areas (6 pm cut), outlined
+        if (PRIORITY31[sa1]) overlays.push(poly ? svgEl("path", { d: poly.map(function (r) { return pathFrom(r, true); }).join(""),
+          fill: "none", stroke: "#1f1f1d", "stroke-width": 2, "fill-rule": "evenodd", "pointer-events": "none" }) : movedRing("out", p[0], p[1]));
+        prec = null;
+      }
+      // exports: symbols only for today's 31 priority areas; the fill shows the rest
+      // a large rural area in the priority colour: say how few homes it holds
+      if (!statusView && prec && prec.quadrant === "high_high" && DISPLAY.large_areas[sa1]) largeLabels.push(largeAreaLabel(sa1, p));
+      if (prec && EXPORT_MODE && !PRIORITY31[sa1]) prec = null;
+      if (prec) {
+        if (prec.moved_out === true) overlays.push(movedRing("out", p[0], p[1]));
+        if (prec.moved_in === true) overlays.push(movedRing(prec.moved_in_kind === "newly" ? "in-newly" : "in", p[0], p[1]));
+        else if (state.scenario !== "S0" && prec.gained) overlays.push(movedRing("gained", p[0], p[1]));
+        if (state.scenario !== "S0" && prec.lost) overlays.push(movedRing("lost", p[0], p[1]));
+        if (ruralEdgeFlagged(sa1, prec)) overlays.push(ruralFlag(p[0], p[1], origins[sa1]));
+      }
+
+      if (state.osmLayer && osmFlags(sa1).length) overlays.unshift(osmOverlay(poly, p[0], p[1]));
+
+      if (sa1 === state.selectedSa1) {
+        if (poly) overlays.push(areaOutline(poly));
+        overlays.push(selectionRing(p[0], p[1]));
+      }
+    });
+    // rail, stations and names above the areas; result markers above those
+    // result markers, then rail/station/suburb names on top (white halo) so
+    // names stay readable where markers cluster
+    overlays.forEach(function (el) { svg.appendChild(el); });
+    if (ctxLabelLayer) svg.appendChild(ctxLabelLayer);
+    largeLabels.forEach(function (el) { svg.appendChild(el); });
+    svg.appendChild(hospitalEl);
+
+    osmBtn.classList.toggle("active", state.osmLayer);
+    if (isPriority && !isStub) renderPriorityLegend(); else renderLegend(isStub);
+    if (state.osmLayer && !state.legendCollapsed) document.getElementById("legend").insertAdjacentHTML("beforeend", osmLegendHtml());
+    renderRankingPanel(isPriority);
+    restoreDetail();
+  }
+
+  // Shows the selected SA1, or the empty-state prompt if none is selected.
+  function restoreDetail() {
+    if (state.selectedSa1) showDetail(state.selectedSa1); else clearDetail();
+  }
+  function clearDetail() {
+    var el = document.getElementById("detail-body");
+    el.textContent = "Click an area to select it. Hovering previews another one.";
+    el.classList.add("placeholder");
+  }
+
+  // ---- map context layers (R/08b_context_layers.R) ----------------------------
+  // Cartographic context only. pointer-events: none throughout, so a press on
+  // any of it counts as "empty map" and never hides an SA1 from the pointer.
+
+  function svgEl(name, attrs) {
+    var el = document.createElementNS(SVGNS, name);
+    Object.keys(attrs).forEach(function (k) { el.setAttribute(k, attrs[k]); });
+    el.setAttribute("pointer-events", "none");
+    return el;
+  }
+  function pathFrom(coords, close) {
+    return coords.map(function (c, i) { var p = project(c[0], c[1]); return (i ? "L" : "M") + p[0].toFixed(1) + "," + p[1].toFixed(1); }).join("") + (close ? "Z" : "");
+  }
+
+  // Station and place labels go in their own layer, raised above the SA1
+  // markers after they are drawn, so the markers never hide them.
+  var ctxLabelLayer = null;
+  var STATION_LABEL_POS = {
+    "Melton":     { dx: -8, dy: -9,  anchor: "end" },
+    "Cobblebank": { dx: -4, dy: -10, anchor: "end" },
+    "Rockbank":   { dx: 0,  dy: 18,  anchor: "middle" }
+  };
+
+  function drawContext() {
+    if (!CONTEXT) return;
+    var g = svgEl("g", { "class": "context" });
+    var labels = svgEl("g", { "class": "context-labels" });
+    ctxLabelLayer = labels;
+    // City of Melton: union of its 402 SA1s
+    g.appendChild(svgEl("path", {
+      d: CONTEXT.melton_outline.map(function (r) { return pathFrom(r, true); }).join(""),
+      fill: "#f2f1ec", stroke: "#9a988d", "stroke-width": 1.5, "fill-rule": "evenodd"
+    }));
+    // V/Line line: dark casing + white dashes (conventional railway line)
+    CONTEXT.rail_line.forEach(function (part) {
+      var d = pathFrom(part, false);
+      labels.appendChild(svgEl("path", { d: d, fill: "none", stroke: "#3a3a3a", "stroke-width": 4, "stroke-linejoin": "round" }));
+      labels.appendChild(svgEl("path", { d: d, fill: "none", stroke: "#ffffff", "stroke-width": 2, "stroke-dasharray": "6 6" }));
+    });
+    // suburb names (every ABS SA2 in Melton; two-part names on two lines)
+    SA2_LABELS.forEach(function (pl) {
+      // on S4 the hospital label already names Cobblebank, at the same spot
+      if (state.scenario === "S4" && pl.name === "Cobblebank - Strathtulloh") return;
+      var off = (state.scenario === "S4" && pl.s4) ? pl.s4 : [0, 0];
+      var p = project(pl.lon + off[0], pl.lat + off[1]);
+      var parts = pl.name.split(" - ");
+      var t = svgEl("text", { x: p[0], y: p[1] - (parts.length - 1) * 7, "text-anchor": "middle", "class": "ctx-sa2" });
+      parts.forEach(function (part, i) {
+        var ts = svgEl("tspan", { x: p[0], dy: i === 0 ? 0 : 14 });
+        ts.textContent = part + (i < parts.length - 1 ? " –" : "");
+        t.appendChild(ts);
+      });
+      labels.appendChild(t);
+    });
+    // stations
+    CONTEXT.stations.forEach(function (s) {
+      var p = project(s.lon, s.lat);
+      g.appendChild(svgEl("circle", { cx: p[0], cy: p[1], r: 4.5, fill: "#ffffff", stroke: "#3a3a3a", "stroke-width": 2 }));
+      var pos = STATION_LABEL_POS[s.name] || { dx: 3, dy: 16, anchor: "middle" };
+      var t = svgEl("text", { x: p[0] + pos.dx, y: p[1] + pos.dy, "text-anchor": pos.anchor, "class": "ctx-station-label" });
+      t.textContent = s.name + " Stn";
+      labels.appendChild(t);
+    });
+    svg.appendChild(g);
+  }
+
+  function hospitalSymbol(cx, cy, label) {
+    var g = svgEl("g", { "class": "dest-marker-group" });
+    g.appendChild(svgEl("rect", { x: cx - 8, y: cy - 8, width: 16, height: 16, rx: 2.5, fill: "#b3001b", stroke: "#ffffff", "stroke-width": 1.5 }));
+    g.appendChild(svgEl("path", { d: "M" + (cx - 1.8) + "," + (cy - 5.5) + "h3.6v3.7h3.7v3.6h-3.7v3.7h-3.6v-3.7h-3.7v-3.6h3.7z", fill: "#ffffff" }));
+    // S4's site sits among suburb labels: its name goes on two lines
+    var t = svgEl("text", { x: cx + 12, y: cy - 3, "class": "ctx-hosp-label" });
+    var lines = state.scenario === "S4" ? label.split(", ") : [label];
+    if (lines.length === 1) t.setAttribute("y", cy + 4);
+    lines.forEach(function (ln, i) {
+      var ts = svgEl("tspan", { x: cx + 12, dy: i === 0 ? 0 : 14 });
+      ts.textContent = ln;
+      t.appendChild(ts);
+    });
+    g.appendChild(t);
+    g.appendChild(svgTitle(label));
+    return g;
+  }
+
+  // legend key for the context layers, shared by both legends
+  function contextLegendRows(destLabel) {
+    var hosp = '<svg class="swatch swatch-hosp" viewBox="0 0 16 16"><rect x="0.5" y="0.5" width="15" height="15" rx="2.5" fill="#b3001b"/>' +
+      '<path d="M6.2,2.5h3.6v3.7h3.7v3.6h-3.7v3.7h-3.6v-3.7h-3.7v-3.6h3.7z" fill="#fff"/></svg>';
+    var html = '<div class="status-row">' + hosp + '<span class="lbl">' + destLabel + '</span></div>';
+    if (CONTEXT) {
+      html += statusRow("swatch-line", CONTEXT.rail_line_name) +
+        statusRow("swatch-station", "Railway station") +
+        statusRow("swatch-outline", "City of Melton boundary");
+    }
+    if (state.mapStyle === "areas" && SA1_POLYS) {
+      html += '<div class="view-note" style="margin-top:4px;">Each shape is one Census area (SA1). Trips are calculated from where its residents live (population-weighted centre), so a large rural shape is still one area.</div>';
+    }
+    return '<div class="status-key" style="margin-top:8px;">' + html + '</div>';
+  }
+
+  function svgTitle(text) {
+    var t = document.createElementNS(SVGNS, "title");
+    t.textContent = text;
+    return t;
+  }
+
+  function statusRow(swatchClass, label) {
+    return '<div class="status-row"><span class="swatch ' + swatchClass + '"></span><span class="lbl">' + label + '</span></div>';
+  }
+
+  function renderLegend(isStub) {
+    var el = document.getElementById("legend");
+    var dest = destinationFor(state.scenario);
+    var html = "";
+
+    if (isStub) {
+      html += '<div class="legend-title">' + state.scenario + ': not yet computed</div>';
+    } else {
+      var m = METRICS.filter(function (x) { return x.id === state.metric; })[0];
+      var d = domains[m.id];
+      var ramp = m.group === "dependency" ? RAMP_DEPENDENCY : RAMP_DIFFICULTY;
+      var stops = ramp.map(function (c) { return "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")"; }).join(",");
+      html +=
+        '<div class="legend-title">' + m.label + '</div>' +
+        '<div class="ramp" style="background: linear-gradient(to right,' + stops + ')"></div>' +
+        '<div class="ramp-labels"><span>' + fmt(d[0]) + '</span><span>' + fmt(d[1]) + '</span></div>';
+
+      if (m.group === "dependency") {
+        html += '<div class="status-key">' +
+          statusRow("swatch-square-suppressed", DEPENDENCY_AXIS_META["dependency-suppressed"].label) +
+          statusRow("swatch-square-undefined", DEPENDENCY_AXIS_META["dependency-undefined"].label) +
+          "</div>";
+      } else {
+        html += '<div class="legend-note-line">Feasible journey = outbound + return.</div>' +
+          '<div class="status-key">' +
+          statusRow("swatch-diamond", "Unroutable") +
+          statusRow("swatch-tri-up", "No outbound service") +
+          statusRow("swatch-tri-down", "No return service") +
+          "</div>";
+      }
+    }
+
+    html += contextLegendRows(dest.label);
+
+    if (!isStub) {
+      html += '<div class="view-note">Priority areas and the ranking: see the Priority areas view.</div>';
+    }
+
+    el.innerHTML = html;
+  }
+
+  function fmt(v) {
+    if (v === null || v === undefined) return "—";
+    return (Math.round(v * 10) / 10).toString();
+  }
+  // ranking deltas: 2 d.p., as R/phase8_ranking.R reports them
+  function fmt2(v) {
+    if (v === null || v === undefined) return "—";
+    return Number(v).toFixed(2);
+  }
+
+  var JOURNEY_STATUS_REASON = {
+    "unroutable": "unroutable — no service in any window (origin-level)",
+    "outbound-no-service": "no scheduled outbound service in this window",
+    "return-no-service": "no scheduled return service in this window"
+  };
+  var DEPENDENCY_AXIS_REASON = {
+    "dependency-suppressed": "suppressed — fewer than 20 dwellings",
+    "dependency-undefined": "undefined — 0 dwellings (share not computable)"
+  };
+
+  // transit rides -> transfers. n_rides counts transit legs (R/05), so
+  // transfers = rides - 1; 0 rides is a walk-only trip (seen on S4), which
+  // has no transfers rather than -1.
+  function transfersText(nRides) {
+    if (nRides === null || nRides === undefined) return null;
+    return nRides === 0 ? "none (walk only)" : String(nRides - 1);
+  }
+
+  // Plain-language summary for the selected scenario, on the headline
+  // window (the window the priority classification is defined on).
+  function summaryHtml(sa1) {
+    var o = origins[sa1];
+    var html = '<div class="summary"><div class="sa1">' + areaName(sa1) + '</div>' +
+      (SA1_NAMES && SA1_NAMES[sa1] ? '<div class="ctx">Census area SA1 ' + sa1 + '</div>' : '') +
+      '<div class="ctx">' + scenarioLabel(state.scenario) + ' · ' + timeLabel(state.time) + '</div><table>';
+    var scen = scenarios[state.scenario];
+    var prec = precFor(state.scenario, sa1);
+    var hrec = (scen !== "not_yet_computed" && scen[HEADLINE_WINDOW]) ? scen[HEADLINE_WINDOW][sa1] : null;
+
+    var trip = !hrec ? "—" : hrec.journey_feasible ? "Yes"
+      : "No — " + (NO_TRIP_REASON[hrec.journey_status] || hrec.journey_status);
+    if (state.time === "830pm") html += row("Trip home at 8:30 pm", !prec ? "—" : prec.trip_home ? "Yes" : "No");
+    html += row(state.time === "830pm" ? "Complete trip, 6 pm" : "Complete return trip", trip);
+    html += row("Complete-return time", prec && prec.complete_return_burden_min !== null && prec.complete_return_burden_min !== undefined
+      ? fmt(prec.complete_return_burden_min) + " min" : "—");
+
+    var pc = prec ? PRIORITY_CLASS_BY_ID[prec.quadrant] : null;
+    html += row("Group", pc ? pc.label : "—");
+    html += row("Change vs today", prec ? moveText(sa1, prec) : "—");
+
+    var noCar;
+    if (o.dependency_axis_status === "dependency-eligible" && o.zero_vehicle_share !== null && o.zero_vehicle_share !== undefined) {
+      noCar = (o.zero_vehicle_share * 100).toFixed(1) + "% of households";
+    } else {
+      noCar = "not used — " + (DEPENDENCY_AXIS_REASON[o.dependency_axis_status] || o.dependency_axis_status);
+    }
+    html += row("No car", noCar);
+
+    var rural = o.rural_edge === true
+      ? "Yes: homes spread " + fmt(o.centroid_dist_m) + " m from the area centre (" + fmtInt(B14_CUTOFF_M) + " m or more). Flagged, not excluded."
+      : "No";
+    html += row("Rural edge", rural);
+
+    // Task 4: walks, each its own indicator (never added to a time, B8)
+    var wk = (MELTON_DATA.walks && MELTON_DATA.walks[state.scenario]) ? MELTON_DATA.walks[state.scenario][sa1] : null;
+    html += row("Walk to first stop", !wk ? "—" : wk.walk_only ? "Walk only, no bus or train"
+      : (wk.first_walk_min === null || wk.first_walk_min === undefined) ? "— (no trip there)"
+      : fmt(wk.first_walk_min) + " min (" + fmtInt(wk.first_walk_m) + " m)");
+    html += row("Walk home from last stop, 8:30 pm trip", !wk ? "—" : !wk.late_trip_home ? "— (no trip home at 8:30 pm)"
+      : fmt(wk.late_final_walk_min) + " min (" + fmtInt(wk.late_final_walk_m) + " m)");
+    var fl = osmFlags(sa1);
+    html += row("Path data", fl.length ? fl.join("; ") + ". Result less certain." : "No known problem");
+    return html + "</table></div>";
+  }
+
+  function moveText(sa1, prec) {
+    if (state.scenario === "S0") return "— (S0 is the baseline)";
+    if (prec.moved_out === null || prec.moved_out === undefined) return "Not applicable";
+    var parts = [];
+    if (prec.moved_out === true) parts.push("Helped: left the priority group");
+    if (prec.moved_in === true) parts.push(prec.moved_in_kind === "newly" ? "Now reachable, but trip still long" : "Got worse: joined the priority group");
+    if (prec.gained) parts.push(state.time === "830pm" ? "Gets a trip home (had none)" : "Gained a complete trip");
+    if (prec.lost) parts.push(state.time === "830pm" ? "Loses its trip home" : "Lost its complete trip");
+    if (parts.length) return parts.join("; ");
+    var s0 = precFor("S0", sa1);
+    if (!s0 || s0.quadrant === prec.quadrant) return "Same group as S0";
+    var s0pc = PRIORITY_CLASS_BY_ID[s0.quadrant];
+    return "Different group from S0 (was: " + (s0pc ? s0pc.label : s0.quadrant) + ")" +
+      (s0.quadrant === "high_high" ? "; does not meet the full moved-out rule" : "");
+  }
+
+  function showDetail(sa1) {
+    var o = origins[sa1];
+    // summary first; every other field below, inside "Technical details"
+    var html = summaryHtml(sa1) +
+      '<details class="tech"' + (state.techOpen ? " open" : "") + '><summary>Technical details</summary>';
+    html += "<div><strong>" + sa1 + "</strong></div>";
+    if (!o.analysis_included) {
+      html += '<div class="placeholder">Excluded from analysis: ' + (o.exclusion_reason || "unspecified") + '</div>';
+    }
+
+    // ---- dependency: raw Census fields always shown, axis eligibility ----
+    html += '<div class="section-h">Dependency (static)</div><table>' +
+      row("zero_vehicle_share (raw)", o.zero_vehicle_share) +
+      row("census_zero_vehicle_dwellings", o.census_zero_vehicle_dwellings) +
+      row("census_total_dwellings", o.census_total_dwellings) +
+      row("census_not_stated_share", o.census_not_stated_share) +
+      row("census_dependency_status", o.census_dependency_status) +
+      "</table>";
+    if (o.dependency_axis_status === "dependency-eligible") {
+      html += '<div>Dependency axis: eligible. Dependency class: ' + o.dependency_class + '.</div>';
+    } else {
+      html += '<div>Dependency axis: excluded — ' + (DEPENDENCY_AXIS_REASON[o.dependency_axis_status] || o.dependency_axis_status) +
+        '. Dependency class: ' + o.dependency_class + ' (cannot occupy a quadrant).</div>';
+    }
+
+    // ---- B14: shown for every SA1, flagged or not ---------------------------
+    html += '<div class="section-h">Rural-edge check</div><table>' +
+      row("centroid offset (m)", fmt(o.centroid_dist_m)) +
+      row("rural-edge (≥ " + fmtInt(B14_CUTOFF_M) + " m)", o.rural_edge === true ? "yes" : "no") +
+      "</table>";
+
+    // ---- scenario / journey feasibility -----------------------------------
+    var scen = scenarios[state.scenario];
+    var win = effectiveWindow();
+    if (scen === "not_yet_computed") {
+      html += '<div class="section-h">' + state.scenario + '</div><div class="placeholder">Not yet computed.</div>';
+    } else {
+      var prec = priority.scenarios[state.scenario] ? priority.scenarios[state.scenario][sa1] : null;
+      if (state.view === "priority" && prec) {
+        var pc = PRIORITY_CLASS_BY_ID[prec.quadrant];
+        html += '<div class="section-h">Priority areas: ' + state.scenario + ' / ' + HEADLINE_WINDOW + '</div>' +
+          '<div><strong>' + (pc ? pc.label : prec.quadrant) + '</strong></div>';
+        if (prec.no_trip_category) {
+          html += '<div>No complete trip: ' + (NO_TRIP_REASON[prec.no_trip_category] || prec.no_trip_category) + '.</div>';
+        }
+        html += '<table>' +
+          row("access_class", prec.access_class) +
+          row("complete-return burden (min)", fmt(prec.complete_return_burden_min)) +
+          row("dependency_class", prec.dependency_class) +
+          row("zero_vehicle_share", o.zero_vehicle_share);
+        if (state.scenario !== "S0" && prec.moved_out !== null && prec.moved_out !== undefined) {
+          html += row("moved out vs S0", prec.moved_out) +
+            row("moved in vs S0", prec.moved_in) +
+            row("gained a complete trip", prec.gained_feasible_journey) +
+            row("lost a complete trip", prec.lost_feasible_journey) +
+            row("complete-return change vs S0 (min)", fmt(prec.delta_complete_return_burden_min));
+        }
+        html += "</table>";
+        if (ruralEdgeFlagged(sa1, prec)) {
+          html += '<div><strong>Rural-edge flag</strong>: centroid offset ≥ ' + fmtInt(B14_CUTOFF_M) + ' m. Flagged, not excluded.</div>';
+        }
+      }
+      var rec = scen[win] ? scen[win][sa1] : null;
+      if (rec) {
+        html += '<div class="section-h">' + state.scenario + ' / ' + win + '</div>';
+        if (rec.journey_feasible) {
+          html += '<div><strong>Complete same-day return journey: feasible</strong></div>';
+        } else {
+          var reason = JOURNEY_STATUS_REASON[rec.journey_status] || rec.journey_status;
+          html += '<div><strong>Complete same-day return journey: infeasible — ' + reason + '</strong></div>';
+        }
+        if (rec.quadrant === "not-applicable") {
+          html += '<div>Access class: ' + rec.access_class + '. Quadrant: not applicable (excluded from the dependency axis above).</div>';
+        } else {
+          html += '<div>Access class: ' + rec.access_class + '. Quadrant: ' + rec.quadrant +
+            ' (defined on the ' + windowLabel(HEADLINE_WINDOW) + ' window for every window).</div>';
+        }
+
+        html += '<div class="section-h">Outbound (raw leg)</div><table>' +
+          row("status_label", rec.outbound.status_label) +
+          row("travel_time_min", rec.outbound.travel_time_min) +
+          row("excess_wait_min", rec.outbound.excess_wait_min) +
+          row("total_burden_min", rec.outbound.total_burden_min) +
+          row("n_rides (transit rides)", rec.outbound.n_rides) +
+          row("transfers (rides − 1)", transfersText(rec.outbound.n_rides)) +
+          row("walk_distance_m", rec.outbound.walk_distance_m) +
+          row("departs_at_window_start", rec.outbound.departs_at_window_start) +
+          "</table>";
+        html += '<div class="section-h">Return (raw leg)</div><table>' +
+          row("status_label", rec.return_leg.status_label) +
+          row("return_wait_min", rec.return_leg.return_wait_min) +
+          row("return_travel_time_min", rec.return_leg.return_travel_time_min) +
+          row("n_rides (transit rides)", rec.return_leg.n_rides) +
+          row("transfers (rides − 1)", transfersText(rec.return_leg.n_rides)) +
+          row("walk_distance_m", rec.return_leg.walk_distance_m) +
+          "</table>";
+      }
+    }
+    html += "</details>";
+    var body = document.getElementById("detail-body");
+    body.innerHTML = html;
+    body.classList.remove("placeholder");
+    // keep "Technical details" open/closed across re-renders and hovers
+    body.querySelector("details.tech").addEventListener("toggle", function (e) { state.techOpen = e.target.open; });
+  }
+
+  function row(k, v) {
+    var display = (v === null || v === undefined) ? "—" : (typeof v === "boolean" ? (v ? "true" : "false") : v);
+    return "<tr><td class='k'>" + k + "</td><td>" + display + "</td></tr>";
+  }
+
+  // ---- Task 5: URL hash (e.g. #scenario=S3&time=830pm&osm=1) and print
+  // export layouts (#export=map | chart). Used by tools/make_exports.sh.
+  var EXPORT_TITLES = {
+    S0: "Where is Sunshine Hospital hardest to reach without a car?",
+    S1: "More frequent buses: which areas are helped?",
+    S2: "Better bus–train timing: which areas are helped?",
+    S3: "Later evening buses: who gets a trip home?",
+    S4: "Hospital at the Cobblebank site: which areas are helped?"
+  };
+  function roundedBar(x, y, w, h, r) {
+    r = Math.min(r, w, h / 2);
+    return "M" + x + "," + y + "h" + (w - r) + "a" + r + "," + r + " 0 0 1 " + r + "," + r + "v" + (h - 2 * r) +
+      "a" + r + "," + r + " 0 0 1 -" + r + "," + r + "h-" + (w - r) + "z";
+  }
+  // Two charts, one measure each (Elvis, 9 Oct 2026). Numbers from
+  // MELTON_DATA.display.chart (R/08_export.R). A zero is written "none".
+  function drawBars(host, rows, series, axisLabel) {
+    var W = host.clientWidth - 44 || 1000, H = (host.clientHeight || 600) - 20;
+    var max = 0;
+    rows.forEach(function (r) { series.forEach(function (se) { max = Math.max(max, r[se.key]); }); });
+    var step = [50, 100, 200, 250, 500, 1000].filter(function (st) { return max / st <= 6; })[0] || 1000;
+    var niceMax = Math.max(step, Math.ceil(max / step) * step);
+    var left = 260, right = 230, top = series.length > 1 ? 46 : 16, bottom = 64;
+    var plotW = W - left - right, plotH = H - top - bottom;
+    var band = plotH / rows.length, barH = Math.min(series.length > 1 ? 30 : 40, band * (series.length > 1 ? 0.3 : 0.45)), gap = 4;
+    var s = svgEl("svg", { width: W, height: H, viewBox: "0 0 " + W + " " + H });
+    if (series.length > 1) {
+      series.forEach(function (se, i) {
+        var x = left + i * 280;
+        s.appendChild(svgEl("rect", { x: x, y: 10, width: 16, height: 16, rx: 3, fill: se.color }));
+        var t = svgEl("text", { x: x + 24, y: 23, "class": "chart-text" }); t.textContent = se.label; s.appendChild(t);
+      });
+    }
+    for (var v = 0; v <= niceMax; v += step) {
+      var gx = left + plotW * v / niceMax;
+      s.appendChild(svgEl("line", { x1: gx, y1: top, x2: gx, y2: top + plotH, stroke: v === 0 ? "#52514e" : "#e4e4df", "stroke-width": v === 0 ? 1.5 : 1 }));
+      var tl = svgEl("text", { x: gx, y: top + plotH + 22, "text-anchor": "middle", "class": "chart-muted" }); tl.textContent = fmtInt(v); s.appendChild(tl);
+    }
+    var ax = svgEl("text", { x: left + plotW / 2, y: top + plotH + 48, "text-anchor": "middle", "class": "chart-muted" });
+    ax.textContent = axisLabel; s.appendChild(ax);
+    rows.forEach(function (r, i) {
+      var cy = top + band * i + band / 2;
+      var lab = svgEl("text", { x: left - 14, y: cy + 5, "text-anchor": "end", "class": "chart-text chart-cat" });
+      lab.textContent = CARD_TITLES[r.scenario]; s.appendChild(lab);
+      series.forEach(function (se, j) {
+        var y = cy - (series.length * barH + (series.length - 1) * gap) / 2 + j * (barH + gap);
+        var val = r[se.key], w = plotW * val / niceMax;
+        if (w > 0) {
+          var bar = svgEl("path", { d: roundedBar(left, y, w, barH, 4), fill: se.color });
+          bar.appendChild(svgTitle(CARD_TITLES[r.scenario] + ", " + se.label.toLowerCase() + ": about " + fmtInt(val) + " homes with no car (" + plural(r[se.areas], "area", "areas") + ")"));
+          s.appendChild(bar);
+        }
+        var vt = svgEl("text", { x: left + w + 8, y: y + barH / 2 + 5, "class": "chart-text" });
+        vt.textContent = val === 0 ? (series.length > 1 ? se.short + ": none" : "none")
+          : (series.length > 1 ? se.short + ": " : "") + "about " + fmtInt(val) + " (" + plural(r[se.areas], "area", "areas") + ")";
+        s.appendChild(vt);
+      });
+    });
+    host.appendChild(s);
+  }
+  var STATUS_TITLES = {
+    S1: "More frequent buses: who has a trip home?",
+    S2: "Better bus–train timing: who has a trip home?",
+    S3: "Later evening buses: who gets a trip home?",
+    S4: "Hospital at the Cobblebank site: who has a trip home?"
+  };
+  function setupExport(kind) {
+    EXPORT_MODE = true;
+    document.body.classList.add("export-mode");
+    document.getElementById("export-foot").textContent = DISPLAY.sources + " " + DISPLAY.chart.people_counts_note +
+      " Helped = the trip home gets shorter and no part of the trip gets longer. Timetabled trips on Wed 9 Sep 2026; delays are not modelled.";
+    var host = document.getElementById("export-chart");
+    if (kind === "chart6") {
+      document.body.classList.add("export-chart");
+      document.getElementById("export-title").textContent = "Homes with no car in areas helped, leaving hospital at 6 pm";
+      document.getElementById("export-sub").textContent = "An area is helped when it leaves the priority group (long trip to hospital AND many homes with no car). Compared with today.";
+      drawBars(host, DISPLAY.chart.rows_6pm,
+        [{ key: "households_helped", areas: "areas_helped", label: "Homes with no car in areas helped", short: "", color: "#0072B2" }],
+        "Homes with no car (rounded to the nearest 10)");
+      return;
+    }
+    if (kind === "chart830") {
+      document.body.classList.add("export-chart");
+      document.getElementById("export-title").textContent = "Homes with no car that gain or lose a trip home, leaving hospital at 8:30 pm";
+      document.getElementById("export-sub").textContent = "Compared with today at 8:30 pm. For S4 the trip home starts at the Cobblebank site, today at Sunshine Hospital.";
+      drawBars(host, DISPLAY.chart.rows_830pm,
+        [{ key: "households_gain", areas: "areas_gain", label: "Gain a trip home (had none)", short: "Gain", color: "#0072B2" },
+         { key: "households_lose", areas: "areas_lose", label: "Lose their trip home", short: "Lose", color: "#D55E00" }],
+        "Homes with no car (rounded to the nearest 10)");
+      return;
+    }
+    var title = useStatusView() ? STATUS_TITLES[state.scenario] : EXPORT_TITLES[state.scenario];
+    document.getElementById("export-title").textContent = title + " Leaving hospital at " + (state.time === "830pm" ? "8:30 pm." : "6 pm.");
+    document.getElementById("export-sub").textContent = (state.scenario === "S0" ? "" : CARD_TITLES[state.scenario] + ": ") +
+      (useStatusView() ? lateStatusText(state.scenario) : cardText(state.scenario));
+  }
+  // 8:30 pm subtitle, from display.chart.rows_830pm (late_window_summary.csv)
+  function lateStatusText(scen) {
+    var r = DISPLAY.chart.rows_830pm.filter(function (x) { return x.scenario === scen; })[0];
+    var txt = "8:30 pm: " + plural(r.areas_gain, "area gains", "areas gain") + " a trip home (about " + fmtInt(r.households_gain) + " homes with no car), " +
+      (r.areas_lose === 0 ? "none lose one." : fmtInt(r.areas_lose) + " lose one (about " + fmtInt(r.households_lose) + ").");
+    if (scen === "S4") txt += " The trip home starts at the Cobblebank site.";
+    if (scen === "S3" && DISPLAY.cards.S3.restored_final_ride_routes === 1) txt += " All " + fmtInt(r.areas_gain) + " depend on one extra bus.";
+    return txt;
+  }
+  var HASH = {};
+  (location.hash || "").replace(/^#/, "").split("&").forEach(function (kv) {
+    var p = kv.split("=");
+    if (p[0]) HASH[p[0]] = decodeURIComponent(p[1] || "");
+  });
+  if (HASH.scenario && SCENARIOS.some(function (s) { return s.id === HASH.scenario; })) state.scenario = HASH.scenario;
+  if (HASH.time === "830pm" || HASH.time === "6pm") state.time = HASH.time;
+  if (HASH.view === "travel") state.view = "travel";
+  if (HASH.osm === "1") state.osmLayer = true;
+  if (HASH.colour === "status" || HASH.colour === "priority") state.colourBy = HASH.colour;
+  if (HASH.export) setupExport(HASH.export);
+
+  window.addEventListener("resize", render);
+  render();
+})();
+</script>
+
+</body>
+</html>

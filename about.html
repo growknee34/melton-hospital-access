@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About | Melton to hospital</title>
+<meta name="description" content="How the results were made, their limits, the data sources and licences, and who made this prototype.">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html"><span class="mark" aria-hidden="true"><span class="stop"></span><span class="seg"></span><span class="hosp"></span></span>Melton to hospital</a>
+    <nav class="site-nav" aria-label="Main">
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="trip.html">The trip</a></li>
+        <li><a href="changes.html">The changes</a></li>
+        <li><a href="explore.html">Explore the map</a></li>
+        <li><a href="about.html" aria-current="page">About</a></li>
+      </ul>
+    </nav>
+  </div>
+  <div class="railrule" aria-hidden="true"></div>
+</header>
+
+<main id="main">
+  <section class="page-top">
+    <div class="wrap">
+      <h1>About this work</h1>
+      <p class="lead">A prototype for GEOM30012, University of Melbourne.</p>
+    </div>
+  </section>
+
+  <section class="band" style="padding-top:8px">
+    <div class="wrap"><div class="prose">
+      <h2 id="method">Method</h2>
+      <ol class="steps">
+        <li>We start one trip in each of the <span data-n="today.areas"></span> Census areas (SA1s) in the City of Melton. Each trip starts at the area's population-weighted centre, from ABS Mesh Block counts.</li>
+        <li>We route each trip with r5r on one fixed snapshot of the Victorian GTFS Schedule timetable (<span data-n="sources.feed_snapshot"></span>) and the OpenStreetMap walking network, on <span data-n="sources.model_date"></span>.</li>
+        <li>Every journey is a same-day return: arrive at Sunshine Hospital for an afternoon appointment, then leave at 6&nbsp;pm or 8:30&nbsp;pm and get home.</li>
+        <li>We keep two measures apart, with no combined score: the full round-trip time, and the share of homes with no car (2021 Census).</li>
+        <li>A priority area is above the Melton middle value for round-trip time AND in the top tenth for homes with no car. This is the high–high quadrant.</li>
+        <li>Each change (S1 to S4) is a separate timetable, or for S4 a new end point, compared with today. An area is helped when it leaves the priority group and no part of its trip gets longer.</li>
+      </ol>
+
+      <h2 id="limits">Limits</h2>
+      <ul>
+        <li>Timetables ignore delays. Trips follow the timetable; late or cancelled services are not included.</li>
+        <li>Footpath gaps are not filled. Some new estates have missing paths in OpenStreetMap, which can make a trip look longer. We did not add paths.</li>
+        <li>Counts are areas and rounded Census homes. Homes with no car come from the 2021 Census, which ABS changes slightly to protect privacy, and are rounded to the nearest ten. Areas with too few homes are not measured.</li>
+        <li>One centre point stands for each area. In large rural areas it may be far from some homes.</li>
+        <li>S4 uses today's buses and trains. It is not a timetable for the future hospital.</li>
+      </ul>
+
+      <h2 id="sources">Data sources and licences</h2>
+      <table class="sources">
+        <thead><tr><th scope="col">Data</th><th scope="col">From</th><th scope="col">Licence</th></tr></thead>
+        <tbody>
+          <tr><td>GTFS Schedule timetable (Victoria), <span data-n="sources.feed_snapshot"></span> snapshot</td><td>Department of Transport and Planning, Transport Victoria open data</td><td>CC BY 4.0</td></tr>
+          <tr><td>Walking network (footpaths and streets)</td><td>© OpenStreetMap contributors</td><td>ODbL</td></tr>
+          <tr><td>SA1 and Mesh Block boundaries, ASGS Edition 3</td><td>Australian Bureau of Statistics</td><td>CC BY 4.0</td></tr>
+          <tr><td>2021 Census Mesh Block counts</td><td>Australian Bureau of Statistics</td><td>CC BY 4.0</td></tr>
+          <tr><td>2021 Census motor vehicles per home, by SA1</td><td>Australian Bureau of Statistics</td><td>CC BY 4.0</td></tr>
+          <tr><td>Mesh Block to council area allocation</td><td>Australian Bureau of Statistics</td><td>CC BY 4.0</td></tr>
+          <tr><td>Sunshine Hospital and Cobblebank site locations (Cobblebank address from a Victorian Health Building Authority announcement)</td><td>Found with OpenStreetMap Nominatim</td><td>ODbL</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:12px">The input files and their checksums are listed in the project's provenance log.</p>
+
+      <h2 id="people">Who made this</h2>
+      <ul class="people">
+        <li><b>Elvis Lin</b>, student, individual project</li>
+        <li>Group members: Te-Pin Perng, Catherine Huang, Yuanle Tian</li>
+      </ul>
+      <p style="margin-top:16px">Prototype for GEOM30012, University of Melbourne. This is student work. It is not a government plan or advice.</p>
+    </div></div>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <p>A student prototype for GEOM30012, University of Melbourne. Not a government plan.</p>
+    <p><a href="about.html#sources">Data sources and licences</a></p>
+  </div>
+</footer>
+<script src="data/site_numbers.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>
