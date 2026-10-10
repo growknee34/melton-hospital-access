@@ -347,3 +347,6 @@ ol.steps li:last-child::after { display: none; }
   .hline { font-size: 15px; }
   .chart.c830 .hline i { width: calc((100% - 13.6em) * var(--p, 0)) !important; }
 }
+/* the number strip now has real spaces in the text ("about 510", "168 min") */
+.keynums .big .pre { margin-right: 0; }
+.keynums .big small { margin-left: 0; }
