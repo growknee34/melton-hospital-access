@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Explore the map | Melton to hospital</title>
 <meta name="description" content="Open the interactive explorer: every Melton area, every change and both times.">
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="assets/site.css">
+<script>document.documentElement.className += " js-menu";</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -13,7 +15,8 @@
   <div class="wrap">
     <a class="brand" href="index.html"><span class="mark" aria-hidden="true"><span class="stop"></span><span class="seg"></span><span class="hosp"></span></span>Melton to hospital</a>
     <nav class="site-nav" aria-label="Main">
-      <ul>
+      <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-menu">Menu</button>
+      <ul id="site-menu">
         <li><a href="index.html">Home</a></li>
         <li><a href="trip.html">The trip</a></li>
         <li><a href="changes.html">The changes</a></li>
@@ -31,15 +34,15 @@
       <div>
         <h1>Explore the map</h1>
         <p class="lead">The explorer is a map of every area in the City of Melton. Choose a change and a time, then click an area to see its trip there and its trip home.</p>
-        <div class="actions"><a class="btn primary" href="explorer/index.html" target="_blank" rel="noopener">Open the explorer</a></div>
+        <div class="actions"><a class="btn primary" href="explorer/index.html" target="_blank" rel="noopener">Open the explorer (opens in new tab)</a></div>
         <ul class="howto">
-          <li>Opens in a new tab and works without internet.</li>
+          <li>Works without internet.</li>
           <li>Best on a laptop or a larger screen.</li>
         </ul>
       </div>
       <figure>
-        <a class="frame" href="explorer/index.html" target="_blank" rel="noopener"><img src="img/explorer_preview.png" width="1600" height="1000"
-          alt="The explorer: a map of Melton with buttons for the four changes and the two times, a legend, and a side panel for the chosen area."></a>
+        <a class="frame" href="explorer/index.html" target="_blank" rel="noopener"><img src="img/explorer_preview.png" width="1600" height="1000" fetchpriority="high"
+          alt="The explorer: a map of Melton with buttons for the four changes and the two times, a legend, and a side panel for the chosen area. (opens in new tab)"></a>
         <figcaption>The explorer, showing today at 6&nbsp;pm.</figcaption>
       </figure>
     </div>

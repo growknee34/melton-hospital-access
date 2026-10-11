@@ -350,3 +350,92 @@ ol.steps li:last-child::after { display: none; }
 /* the number strip now has real spaces in the text ("about 510", "168 min") */
 .keynums .big .pre { margin-right: 0; }
 .keynums .big small { margin-left: 0; }
+
+/* ---- accessibility fixes (audit, Step 2) --------------------------------- */
+/* header stays at the top; anchors and focused items land below it (2.4.11) */
+.site-head { position: sticky; top: 0; z-index: 20; }
+html { scroll-padding-top: 100px; }
+.skip:focus { z-index: 30; }
+.brand { min-height: 24px; }                                   /* 2.5.8 */
+.menu-btn { display: none; }
+/* the map box scrolls sideways on phones, so it takes keyboard focus (2.1.1) */
+.map-scroll:focus-visible { outline: 3px solid var(--dep); outline-offset: 3px; border-radius: 10px; }
+/* white focus ring on the dark footer (2.4.7) */
+.site-foot :focus-visible { outline-color: #fff; }
+/* the grey "no trip home" track gets a dark edge (1.4.11) */
+.bar, .key .k-no::before { box-shadow: inset 0 0 0 1px var(--ink-soft); }
+@media (max-width: 760px) {
+  /* without JavaScript the full header is not sticky: it would cover too much */
+  .site-head { position: static; }
+  html { scroll-padding-top: 16px; }
+  html.js-menu { scroll-padding-top: 84px; }
+  html.js-menu .site-head { position: sticky; }
+  html.js-menu .site-head .wrap { flex-direction: row; align-items: center; padding-top: 10px; padding-bottom: 10px; }
+  html.js-menu nav.site-nav { width: auto; }
+  html.js-menu .menu-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 16px; border: 2px solid var(--ink);
+    border-radius: 8px; background: var(--paper); color: var(--ink); font: 600 16px/1.2 var(--font); cursor: pointer; }
+  html.js-menu .menu-btn[aria-expanded="true"] { background: var(--ink); color: #fff; }
+  html.js-menu nav.site-nav ul { display: none; position: absolute; left: 0; right: 0; top: 100%; flex-direction: column; gap: 2px;
+    padding: 8px var(--gutter) 14px; background: var(--paper); border-bottom: 2px solid var(--ink); box-shadow: 0 8px 16px rgba(21,34,46,0.12); }
+  html.js-menu .menu-btn[aria-expanded="true"] + ul { display: flex; }
+  html.js-menu nav.site-nav ul a { padding: 12px 10px; font-size: 17px; }
+}
+@media print { .menu-btn { display: none !important; } .site-head { position: static; } }
+
+/* ---- Step 3: one hero number on Home ------------------------------------- */
+/* "31 priority areas today" is the big number; the other two sit smaller
+   beneath it. Same markup and wording. Orange-brown is the map's "priority"
+   colour, so it is used only for priority data (never links or buttons). */
+.keynums { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 760px; }
+.keynums li:first-child { grid-column: 1 / -1; padding: 18px 0 20px; border-bottom: 1px solid var(--rule); }
+.keynums li:first-child .big { font-size: clamp(72px, 9vw, 112px); line-height: 0.95; letter-spacing: -0.035em; color: var(--priority); }
+.keynums li:first-child .lbl { font: 650 clamp(20px, 2vw, 24px)/1.3 var(--font-display); color: var(--ink); margin-top: 8px; }
+.keynums li:nth-child(2) { padding-left: 0; border-left: 0; }
+.keynums li:nth-child(n+2) .big { font-size: 36px; }
+.keynums li:nth-child(n+2) .lbl { font-size: 15.5px; margin-top: 6px; }
+@media (max-width: 760px) {
+  .keynums li:first-child .big { font-size: 80px; }
+  .keynums li:nth-child(n+2) .big { font-size: 32px; }
+  .keynums li:nth-child(3) { padding-left: 16px; border-left: 1px solid var(--rule); border-top: 0; }
+  .keynums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .keynums li:nth-child(2) { border-top: 0; padding-right: 16px; }
+}
+
+/* ---- one legend row per map category (explorer labels, issue 4) ---------- */
+.sw.lowhigh { background: var(--dep); }
+.sw.lowlow { background: var(--short); }
+.sw.grey { background: var(--nodata); box-shadow: inset 0 0 0 1px var(--rule); }
+.sw.hatch { background: repeating-linear-gradient(45deg, var(--hatch) 0 1.5px, #fff 1.5px 5px); box-shadow: inset 0 0 0 1px var(--rule); }
+
+/* ---- scroll story on Home (CSS only) -------------------------------------- */
+/* Wide screens: each step's map stays pinned below the header while its text
+   scrolls past, then the next step's map takes its place. Narrow screens and
+   print: a plain list, text then map. No JavaScript, no animation. */
+.story { list-style: none; margin: 0; padding: 0; }
+.step { padding: 0 0 48px; }
+.step + .step { border-top: 1px solid var(--rule); padding-top: 32px; }
+.step .when { font: 650 40px/1 var(--font-display); letter-spacing: -0.02em; color: var(--ink); margin: 0 0 10px; }
+.step .when small { display: block; font: 500 15px/1.4 var(--font); letter-spacing: 0; color: var(--muted); margin-top: 6px; }
+#story-today-830pm .when { color: var(--ink); border-top: 5px solid var(--ink); padding-top: 14px; }
+.step h3 { margin: 6px 0 10px; }
+.step .desc { color: var(--ink-soft); font-size: 19px; }
+.step-map { margin-top: 20px; }
+.step-map .map-key { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; margin-top: 14px; font-size: 15.5px; }
+.step-map figcaption { margin-top: 10px; }
+@media (min-width: 1101px) {
+  .step { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 48px; min-height: 150vh; }
+  .step:last-child { min-height: 0; }
+  .step-text { padding-top: 0; position: sticky; top: 98px; align-self: start; }
+  .step-map { margin-top: 0; position: sticky; top: 98px; align-self: start; }
+  .step-map .map-scroll { max-width: calc((100vh - 82px - 230px) * 840 / 620); }
+}
+@media (max-width: 760px) {
+  .step .when { font-size: 34px; }
+  .step-map .map-key { grid-template-columns: 1fr; }
+}
+/* story: about one screen per step; divider before the 8:30 pm steps; links on */
+@media (min-width: 1101px) { .step { min-height: calc(130vh - 82px); } .step:last-child { min-height: 0; } }
+.story-divider { margin: 8px 0 32px; padding: 18px 0 0; border-top: 5px solid var(--ink); font-size: clamp(24px, 2.4vw, 30px); }
+#story-today-830pm { border-top: 0; padding-top: 0; }
+#story-today-830pm .when { border-top: 0; padding-top: 0; }
+.step .more { margin-top: 4px; font-size: 16.5px; font-weight: 600; }

@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Melton to hospital</title>
 <meta name="description" content="Can Melton residents without a car get to Sunshine Hospital and home again by public transport? Four possible changes, compared.">
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="assets/site.css">
+<script>document.documentElement.className += " js-menu";</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -13,7 +15,8 @@
   <div class="wrap">
     <a class="brand" href="index.html"><span class="mark" aria-hidden="true"><span class="stop"></span><span class="seg"></span><span class="hosp"></span></span>Melton to hospital</a>
     <nav class="site-nav" aria-label="Main">
-      <ul>
+      <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-menu">Menu</button>
+      <ul id="site-menu">
         <li><a href="index.html" aria-current="page">Home</a></li>
         <li><a href="trip.html">The trip</a></li>
         <li><a href="changes.html">The changes</a></li>
@@ -42,23 +45,172 @@
     </div>
   </section>
 
-  <section class="band" style="padding-top:0">
+  <section class="band story-band" aria-labelledby="story-h">
     <div class="wrap">
-      <figure class="webmap">
-        <div class="map-scroll" data-start="0.1"><img src="img/web/map_today_6pm.png" width="840" height="620"
-          alt="Map of the City of Melton, leaving hospital at 6&nbsp;pm. Priority areas, in dark orange-brown, are grouped around Melton town centre and Melton South."></div>
-        <div class="map-side">
+      <div class="section-head"><h2 id="story-h">Today and the four changes, step by step</h2></div>
+      <ol class="story">
+      <li class="step" id="story-today-6pm">
+        <div class="step-text">
+      <p class="when">6&nbsp;pm <small>leaving hospital</small></p>
+      <h3>Today</h3>
+      <p><span data-n="today.priority_areas">31</span> priority areas. A <b>priority area</b> has a long trip to hospital AND many homes with no car.</p>
+      <p class="more"><a href="trip.html" aria-label="Full details: today, the trip">Full details</a></p>
+        </div>
+        <figure class="step-map">
+          <div class="map-scroll" data-start="0.1" tabindex="0" role="region" aria-label="Map: today, leaving hospital at 6&nbsp;pm"><img src="img/web/map_today_6pm.png" width="840" height="620" loading="eager" fetchpriority="high"
+            data-n-alt="Map of the City of Melton, leaving hospital at 6&nbsp;pm. {today.priority_areas} priority areas are shown in dark orange-brown." alt="Map of the City of Melton, leaving hospital at 6&nbsp;pm. 31 priority areas are shown in dark orange-brown."></div>
           <p class="swipe-hint">Swipe sideways to see the whole map.</p>
           <ul class="map-key" aria-label="Map key">
             <li><span class="sw priority"></span><span>Priority: long trip AND many homes with no car</span></li>
             <li><span class="sw long"></span><span>Long trip, fewer homes with no car</span></li>
-            <li><span class="sw shorter"></span><span>Shorter trip (dark blue: many homes with no car)</span></li>
-            <li><span class="sw nodata"></span><span>Grey: no full round trip by public transport. Striped: too few homes to measure.</span></li>
+            <li><span class="sw lowhigh"></span><span>Shorter trip, many homes with no car</span></li>
+            <li><span class="sw lowlow"></span><span>Shorter trip, fewer homes with no car</span></li>
+            <li><span class="sw grey"></span><span>No full round trip by public transport</span></li>
+            <li><span class="sw hatch"></span><span>Not enough data (too few homes to measure)</span></li>
           </ul>
           <figcaption>Today, leaving hospital at 6&nbsp;pm. <a href="img/map_today_6pm_1920x1080.png">Open full size</a></figcaption>
+        </figure>
+      </li>
+      <li class="step" id="story-s1">
+        <div class="step-text">
+      <p class="when">6&nbsp;pm <small>leaving hospital</small></p>
+      <h3>S1 More frequent buses</h3>
+      <p class="desc">One extra bus trip halfway between each pair of existing trips.</p>
+      <p>An area is helped when it is no longer a priority area. <span data-n="s1.helped_areas">3</span> areas are helped, with about <span data-n="s1.helped_homes">90</span> homes with no car. The gain is lost if you miss one connection.</p>
+      <p class="more"><a href="changes.html#s1" aria-label="Full details: S1 More frequent buses">Full details</a></p>
         </div>
-      </figure>
-      <p class="priority-def"><span class="swatch priority" aria-hidden="true"></span><span>A <b>priority area</b> has a long trip to hospital AND many homes with no car.</span></p>
+        <figure class="step-map">
+          <div class="map-scroll" data-start="0.1" tabindex="0" role="region" aria-label="Map: S1 More frequent buses, leaving hospital at 6&nbsp;pm"><img src="img/web/map_more_buses_6pm.png" width="840" height="620" loading="lazy"
+            data-n-alt="Map: more frequent buses, leaving hospital at 6&nbsp;pm. {s1.helped_areas} areas are circled as helped: they are no longer priority areas." alt="Map: more frequent buses, leaving hospital at 6&nbsp;pm. 3 areas are circled as helped: they are no longer priority areas."></div>
+          <p class="swipe-hint">Swipe sideways to see the whole map.</p>
+          <ul class="map-key" aria-label="Map key">
+            <li><span class="sw priority"></span><span>Priority: long trip AND many homes with no car</span></li>
+            <li><span class="sw long"></span><span>Long trip, fewer homes with no car</span></li>
+            <li><span class="sw lowhigh"></span><span>Shorter trip, many homes with no car</span></li>
+            <li><span class="sw lowlow"></span><span>Shorter trip, fewer homes with no car</span></li>
+            <li><span class="sw ring"></span><span>Helped: left the priority group (vs today)</span></li>
+            <li><span class="sw grey"></span><span>No full round trip by public transport</span></li>
+            <li><span class="sw hatch"></span><span>Not enough data (too few homes to measure)</span></li>
+          </ul>
+          <figcaption>S1 More frequent buses, leaving hospital at 6&nbsp;pm. <a href="img/map_more_buses_6pm_1920x1080.png">Open full size</a></figcaption>
+        </figure>
+      </li>
+      <li class="step" id="story-s2">
+        <div class="step-text">
+      <p class="when">6&nbsp;pm <small>leaving hospital</small></p>
+      <h3>S2 Better bus–train timing</h3>
+      <p class="desc">Bus trip times shifted to meet V/Line trains.</p>
+      <p>No area is helped. It helps some trips and hurts others: <span data-n="s2.shorter">68</span> round trips get shorter and <span data-n="s2.longer">77</span> get longer.</p>
+      <p class="more"><a href="changes.html#s2" aria-label="Full details: S2 Better bus–train timing">Full details</a></p>
+        </div>
+        <figure class="step-map">
+          <div class="map-scroll" data-start="0.1" tabindex="0" role="region" aria-label="Map: S2 Better bus–train timing, leaving hospital at 6&nbsp;pm"><img src="img/web/map_better_timing_6pm.png" width="840" height="620" loading="lazy"
+            alt="Map: better bus–train timing, leaving hospital at 6&nbsp;pm. No area is circled as helped."></div>
+          <p class="swipe-hint">Swipe sideways to see the whole map.</p>
+          <ul class="map-key" aria-label="Map key">
+            <li><span class="sw priority"></span><span>Priority: long trip AND many homes with no car</span></li>
+            <li><span class="sw long"></span><span>Long trip, fewer homes with no car</span></li>
+            <li><span class="sw lowhigh"></span><span>Shorter trip, many homes with no car</span></li>
+            <li><span class="sw lowlow"></span><span>Shorter trip, fewer homes with no car</span></li>
+            <li><span class="sw grey"></span><span>No full round trip by public transport</span></li>
+            <li><span class="sw hatch"></span><span>Not enough data (too few homes to measure)</span></li>
+          </ul>
+          <figcaption>S2 Better bus–train timing, leaving hospital at 6&nbsp;pm. No area is helped, so none is circled. <a href="img/map_better_timing_6pm_1920x1080.png">Open full size</a></figcaption>
+        </figure>
+      </li>
+      <li class="step" id="story-s4-6pm">
+        <div class="step-text">
+      <p class="when">6&nbsp;pm <small>leaving hospital</small></p>
+      <h3>S4 Cobblebank hospital</h3>
+      <p class="desc">New hospital site on today's network — not a future timetable.</p>
+      <p><span data-n="s4.helped_areas">30</span> areas are helped, with about <span data-n="s4.helped_homes">500</span> homes with no car.</p>
+      <p class="more"><a href="changes.html#s4" aria-label="Full details: S4 Cobblebank hospital">Full details</a></p>
+        </div>
+        <figure class="step-map">
+          <div class="map-scroll" data-start="0.1" tabindex="0" role="region" aria-label="Map: S4 Cobblebank hospital, leaving hospital at 6&nbsp;pm"><img src="img/web/map_cobblebank_6pm.png" width="840" height="620" loading="lazy"
+            data-n-alt="Map: Cobblebank hospital, leaving hospital at 6&nbsp;pm. {s4.helped_areas} areas are circled as helped: they are no longer priority areas." alt="Map: Cobblebank hospital, leaving hospital at 6&nbsp;pm. 30 areas are circled as helped: they are no longer priority areas."></div>
+          <p class="swipe-hint">Swipe sideways to see the whole map.</p>
+          <ul class="map-key" aria-label="Map key">
+            <li><span class="sw priority"></span><span>Priority: long trip AND many homes with no car</span></li>
+            <li><span class="sw long"></span><span>Long trip, fewer homes with no car</span></li>
+            <li><span class="sw lowhigh"></span><span>Shorter trip, many homes with no car</span></li>
+            <li><span class="sw lowlow"></span><span>Shorter trip, fewer homes with no car</span></li>
+            <li><span class="sw ring"></span><span>Helped: left the priority group (vs today)</span></li>
+            <li><span class="sw grey"></span><span>No full round trip by public transport</span></li>
+            <li><span class="sw hatch"></span><span>Not enough data (too few homes to measure)</span></li>
+          </ul>
+          <figcaption>S4 Cobblebank hospital, leaving hospital at 6&nbsp;pm. <a href="img/map_cobblebank_6pm_1920x1080.png">Open full size</a></figcaption>
+        </figure>
+      </li>
+      </ol>
+      <h3 class="story-divider">Later in the evening: leaving hospital at 8:30&nbsp;pm</h3>
+      <ol class="story">
+      <li class="step" id="story-today-830pm">
+        <div class="step-text">
+      <p class="when">8:30&nbsp;pm <small>leaving hospital</small></p>
+      <h3>Today</h3>
+      <p>At 8:30&nbsp;pm, <span data-n="today.no_trip_home_830pm">180</span> areas have no trip home. This includes <span data-n="today.priority_no_trip_home_830pm">21</span> of the <span data-n="today.priority_areas">31</span> priority areas. Almost all of them are grey on this map: no full round trip by public transport.</p>
+      <p class="more"><a href="trip.html" aria-label="Full details: today, the trip">Full details</a></p>
+        </div>
+        <figure class="step-map">
+          <div class="map-scroll" data-start="0.1" tabindex="0" role="region" aria-label="Map: today, leaving hospital at 8:30&nbsp;pm"><img src="img/web/map_today_830pm.png" width="840" height="620" loading="lazy"
+            data-n-alt="Map of the City of Melton, leaving hospital at 8:30&nbsp;pm. {today.no_trip_home_830pm} areas have no trip home; almost all of them are grey." alt="Map of the City of Melton, leaving hospital at 8:30&nbsp;pm. 180 areas have no trip home; almost all of them are grey."></div>
+          <p class="swipe-hint">Swipe sideways to see the whole map.</p>
+          <ul class="map-key" aria-label="Map key">
+            <li><span class="sw priority"></span><span>Priority: long trip AND many homes with no car</span></li>
+            <li><span class="sw long"></span><span>Long trip, fewer homes with no car</span></li>
+            <li><span class="sw lowhigh"></span><span>Shorter trip, many homes with no car</span></li>
+            <li><span class="sw lowlow"></span><span>Shorter trip, fewer homes with no car</span></li>
+            <li><span class="sw grey"></span><span>No full round trip by public transport</span></li>
+            <li><span class="sw hatch"></span><span>Not enough data (too few homes to measure)</span></li>
+          </ul>
+          <figcaption>Today, leaving hospital at 8:30&nbsp;pm.</figcaption>
+        </figure>
+      </li>
+      <li class="step" id="story-s3">
+        <div class="step-text">
+      <p class="when">8:30&nbsp;pm <small>leaving hospital</small></p>
+      <h3>S3 Later evening buses</h3>
+      <p class="desc">The last bus trips repeated until 10&nbsp;pm.</p>
+      <p>From here, the 8:30&nbsp;pm maps use a different key: they compare each area with today. Grey still means no trip home.</p>
+      <p><span data-n="s3.gain_areas">45</span> areas get a trip home they do not have today, shown in dark blue. <span data-n="s3.priority_gain">19</span> of them are priority areas, with about <span data-n="s3.priority_gain_homes">290</span> homes with no car. This gain depends on a single bus trip.</p>
+      <p class="more"><a href="changes.html#s3" aria-label="Full details: S3 Later evening buses">Full details</a></p>
+        </div>
+        <figure class="step-map">
+          <div class="map-scroll" data-start="0.1" tabindex="0" role="region" aria-label="Map: S3 Later evening buses, leaving hospital at 8:30&nbsp;pm"><img src="img/web/map_later_buses_830pm.png" width="840" height="620" loading="lazy"
+            data-n-alt="Map: later evening buses, leaving hospital at 8:30&nbsp;pm. {s3.gain_areas} areas, in dark blue, get a trip home they do not have today; {s3.priority_gain} of them are outlined priority areas. No area loses its trip home." alt="Map: later evening buses, leaving hospital at 8:30&nbsp;pm. 45 areas, in dark blue, get a trip home they do not have today; 19 of them are outlined priority areas. No area loses its trip home."></div>
+          <p class="swipe-hint">Swipe sideways to see the whole map.</p>
+          <ul class="map-key" aria-label="Map key">
+            <li><span class="sw gained"></span><span>Gets a trip home (had none today)</span></li>
+            <li><span class="sw both"></span><span>Trip home both times</span></li>
+            <li><span class="sw neither"></span><span>No trip home either way</span></li>
+            <li><span class="sw outline"></span><span>Outlined: priority area today (6&nbsp;pm)</span></li>
+          </ul>
+          <figcaption>S3 Later evening buses, leaving hospital at 8:30&nbsp;pm. <a href="img/map_later_buses_830pm_1920x1080.png">Open full size</a></figcaption>
+        </figure>
+      </li>
+      <li class="step" id="story-s4-830pm">
+        <div class="step-text">
+      <p class="when">8:30&nbsp;pm <small>leaving hospital</small></p>
+      <h3>S4 Cobblebank hospital</h3>
+      <p><span data-n="s4.gain_830pm_areas">168</span> areas get a trip home they do not have today, and <span data-n="s4.lose_830pm_areas">41</span> lose their trip home. With S4, the trip home starts at Cobblebank instead of Sunshine Hospital.</p>
+      <p class="more"><a href="changes.html#s4" aria-label="Full details: S4 Cobblebank hospital">Full details</a></p>
+        </div>
+        <figure class="step-map">
+          <div class="map-scroll" data-start="0.1" tabindex="0" role="region" aria-label="Map: S4 Cobblebank hospital, leaving hospital at 8:30&nbsp;pm"><img src="img/web/map_cobblebank_830pm.png" width="840" height="620" loading="lazy"
+            data-n-alt="Map: Cobblebank hospital, leaving hospital at 8:30&nbsp;pm. {s4.gain_830pm_areas} areas, in dark blue, get a trip home they do not have today; {s4.lose_830pm_areas} areas, in orange, lose their trip home." alt="Map: Cobblebank hospital, leaving hospital at 8:30&nbsp;pm. 168 areas, in dark blue, get a trip home they do not have today; 41 areas, in orange, lose their trip home."></div>
+          <p class="swipe-hint">Swipe sideways to see the whole map.</p>
+          <ul class="map-key" aria-label="Map key">
+            <li><span class="sw gained"></span><span>Gets a trip home (had none today)</span></li>
+            <li><span class="sw lost"></span><span>Loses its trip home</span></li>
+            <li><span class="sw both"></span><span>Trip home both times</span></li>
+            <li><span class="sw neither"></span><span>No trip home either way</span></li>
+            <li><span class="sw outline"></span><span>Outlined: priority area today (6&nbsp;pm)</span></li>
+          </ul>
+          <figcaption>S4 Cobblebank hospital, leaving hospital at 8:30&nbsp;pm. <a href="img/map_cobblebank_830pm_1920x1080.png">Open full size</a></figcaption>
+        </figure>
+      </li>
+      </ol>
     </div>
   </section>
 
