@@ -423,8 +423,8 @@ html { scroll-padding-top: 100px; }
 .step-map .map-key { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; margin-top: 14px; font-size: 15.5px; }
 .step-map figcaption { margin-top: 10px; }
 @media (min-width: 1101px) {
-  .step { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 48px; min-height: 150vh; }
-  .step:last-child { min-height: 0; }
+  .step { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 48px; }
+ 
   .step-text { padding-top: 0; position: sticky; top: 98px; align-self: start; }
   .step-map { margin-top: 0; position: sticky; top: 98px; align-self: start; }
   .step-map .map-scroll { max-width: calc((100vh - 82px - 230px) * 840 / 620); }
@@ -434,7 +434,7 @@ html { scroll-padding-top: 100px; }
   .step-map .map-key { grid-template-columns: 1fr; }
 }
 /* story: about one screen per step; divider before the 8:30 pm steps; links on */
-@media (min-width: 1101px) { .step { min-height: calc(130vh - 82px); } .step:last-child { min-height: 0; } }
+@media (min-width: 1101px) { .step { min-height: calc(130vh - 82px); } }
 .story-divider { margin: 8px 0 32px; padding: 18px 0 0; border-top: 5px solid var(--ink); font-size: clamp(24px, 2.4vw, 30px); }
 #story-today-830pm { border-top: 0; padding-top: 0; }
 #story-today-830pm .when { border-top: 0; padding-top: 0; }
