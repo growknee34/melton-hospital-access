@@ -20,6 +20,7 @@
         <li><a href="index.html">Home</a></li>
         <li><a href="trip.html">The trip</a></li>
         <li><a href="changes.html">The changes</a></li>
+        <li><a href="whatnext.html">What next</a></li>
         <li><a href="explore.html">Explore the map</a></li>
         <li><a href="about.html" aria-current="page">About</a></li>
       </ul>
@@ -43,19 +44,20 @@
         <li>We start one trip in each of the <span data-n="today.areas">402</span> Census areas (SA1s) in the City of Melton. Each trip starts at the area's population-weighted centre, from ABS Mesh Block counts.</li>
         <li>We route each trip with r5r on one fixed snapshot of the Victorian GTFS Schedule timetable (<span data-n="sources.feed_snapshot">14 Aug 2026</span>) and the OpenStreetMap walking network, on <span data-n="sources.model_date">Wednesday 9 September 2026</span>.</li>
         <li>Every journey is a same-day return: arrive at Sunshine Hospital for an afternoon appointment, then leave at 6&nbsp;pm or 8:30&nbsp;pm and get home.</li>
-        <li>We keep two measures apart, with no combined score: the full round-trip time, and the share of homes with no car (2021 Census).</li>
-        <li>A priority area is above the Melton middle value for round-trip time AND in the top tenth for homes with no car. This is the high–high quadrant.</li>
-        <li>Each change (S1 to S4) is a separate timetable, or for S4 a new end point, compared with today. An area is helped when it leaves the priority group and no part of its trip gets longer.</li>
+        <li>We keep two measures apart, with no combined score: the full round-trip time, and the share of homes without a car (2021 Census).</li>
+        <li>A priority area is above the Melton middle value for round-trip time AND in the top tenth for homes without a car.</li>
+        <li>Each change is a separate timetable, or for the Cobblebank site a new end point, compared with the Sept 2026 timetable. An area counts as improved when it is no longer a priority area and no part of its trip gets longer.</li>
       </ol>
 
       <h2 id="limits">Limits</h2>
       <ul>
         <li>Timetables ignore delays. Trips follow the timetable; late or cancelled services are not included.</li>
-        <li>Footpath gaps are not filled. Some new estates have missing paths in OpenStreetMap, which can make a trip look longer. We did not add paths.</li>
-        <li>Counts are areas and rounded Census homes. Homes with no car come from the 2021 Census, which ABS changes slightly to protect privacy, and are rounded to the nearest ten. Areas with too few homes are not measured.</li>
+        <li>Some new estates have missing paths in OpenStreetMap, which can make a trip look longer. We did not add the footpaths that are missing from the map data.</li>
+        <li>We count areas, and round the number of homes to the nearest 10. Homes without a car come from the 2021 Census, which ABS changes slightly to protect privacy. Areas with too few homes are not measured.</li>
         <li>One centre point stands for each area. In large rural areas it may be far from some homes.</li>
-        <li>S4 uses today's buses and trains. It is not a timetable for the future hospital.</li>
+        <li>The Cobblebank site is tested with the Sept 2026 buses and trains, not a future timetable.</li>
       </ul>
+      <p><a href="whatnext.html">What would make these results stronger</a></p>
 
       <h2 id="sources">Data sources and licences</h2>
       <table class="sources">
@@ -83,6 +85,10 @@
 </main>
 
 <footer class="site-foot">
+  <div class="wrap ack">
+    <h2 id="ack-h">Acknowledgement of Country</h2>
+    <p>We acknowledge the peoples of the Kulin Nation, the Traditional Owners of the lands, waters and skies of the City of Melton and Sunshine, where this project takes place. We acknowledge their ongoing strength in practising the world's oldest living culture. We pay our respects to their Elders past and present.</p>
+  </div>
   <div class="wrap">
     <p>A student prototype for GEOM30012, University of Melbourne. Not a government plan.</p>
     <p><a href="about.html#sources">Data sources and licences</a></p>

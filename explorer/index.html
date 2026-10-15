@@ -400,7 +400,7 @@
 
 <header>
   <h1>Melton &rarr; Sunshine Hospital: Access &amp; Service Improvement Scenario Explorer</h1>
-  <div class="sub">Which change to existing bus and train services most improves same-day hospital trips for Melton areas where many households have no car? <span id="generated-note"></span></div>
+  <div class="sub">Which change to existing bus and train services most improves same-day hospital trips for Melton areas where many households are without a car? <span id="generated-note"></span></div>
 </header>
 
 <div class="controls">
@@ -419,7 +419,7 @@
   <div class="control-group">
     <span class="grouplabel">Scenario</span>
     <div id="scenario-buttons"></div>
-    <span class="helped-def" id="helped-def">Helped = the trip home gets shorter and no part of the trip gets longer.</span>
+    <span class="helped-def" id="helped-def">An area counts as improved when it stops being a priority area: its trip home gets shorter and no part of the trip gets longer.</span>
   </div>
   <div class="control-group" id="time-group">
     <span class="grouplabel">Time</span>
@@ -476,11 +476,11 @@
   // desc: the one plain sentence shown under the buttons for the selected
   // scenario (Elvis's wording, 28 Sep 2026).
   var SCENARIOS = [
-    { id: "S0", label: "Today", desc: "Today's timetable and hospital." },
-    { id: "S1", label: "S1 More frequent buses", desc: "One extra bus trip halfway between each pair of existing trips." },
-    { id: "S2", label: "S2 Better bus–train timing", desc: "Bus trip times shifted to meet V/Line trains." },
-    { id: "S3", label: "S3 Later evening buses", desc: "The last bus trips repeated until 10 pm." },
-    { id: "S4", label: "S4 Cobblebank hospital", desc: "New hospital site on today's network — not a future timetable." }
+    { id: "S0", label: "Sept 2026 timetable", desc: "The Sept 2026 timetable and Sunshine Hospital." },
+    { id: "S1", label: "More frequent buses", desc: "One extra bus trip halfway between each pair of existing trips." },
+    { id: "S2", label: "Bus–train timing", desc: "Bus trip times shifted to meet V/Line trains." },
+    { id: "S3", label: "Later buses", desc: "Extra late buses on existing routes, leaving as late as 10 pm." },
+    { id: "S4", label: "Cobblebank site", desc: "The Cobblebank site, tested with the Sept 2026 buses and trains, not a future timetable." }
   ];
   var WINDOWS = [
     { id: "weekday_peak", label: "Weekday peak" },
@@ -544,10 +544,10 @@
   var PRIORITY_CLASSES = [
     // deeper than Okabe-Ito vermillion so it separates from the amber on a
     // projector (all-pairs check: CVD and normal-vision dE >= 20)
-    { id: "high_high", shape: "circle",  fill: "#A63D00", label: "Priority: long trip AND many homes with no car" },
-    { id: "high_low",  shape: "circle",  fill: "#E69F00", label: "Long trip, fewer homes with no car" },
-    { id: "low_high",  shape: "circle",  fill: "#0072B2", label: "Shorter trip, many homes with no car" },
-    { id: "low_low",   shape: "circle",  fill: "#56B4E9", label: "Shorter trip, fewer homes with no car" },
+    { id: "high_high", shape: "circle",  fill: "#A63D00", label: "Priority: long trip AND many homes without a car" },
+    { id: "high_low",  shape: "circle",  fill: "#E69F00", label: "Long trip, fewer homes without a car" },
+    { id: "low_high",  shape: "circle",  fill: "#0072B2", label: "Shorter trip, many homes without a car" },
+    { id: "low_low",   shape: "circle",  fill: "#56B4E9", label: "Shorter trip, fewer homes without a car" },
     // Task 5: own grey styles, never mixed with the four groups (light grey
     // passes the CVD and normal-vision checks against all four colours)
     { id: "undetermined-legs-not-ok", shape: "nodata", fill: "#d4d4d0", label: "No full round trip by public transport" },
@@ -590,7 +590,7 @@
   // priority group (second option). Today's 31 priority areas (6 pm cut)
   // are outlined in the status view.
   var STATUS_CLASSES = [
-    { id: "gained",  fill: "#0072B2", label: "Gets a trip home (had none today)" },
+    { id: "gained",  fill: "#0072B2", label: "Gets a trip home (has none on the Sept 2026 timetable)" },
     { id: "lost",    fill: "#D55E00", label: "Loses its trip home" },
     { id: "both",    fill: "#f7f4ea", label: "Trip home both times" },
     { id: "neither", fill: "#b9b9b4", label: "No trip home either way" }
@@ -918,7 +918,7 @@
   });
 
   var colourButtonsEl = document.getElementById("colour-buttons");
-  [{ id: "status", label: "Trip home vs today" }, { id: "priority", label: "Priority group" }].forEach(function (c) {
+  [{ id: "status", label: "Trip home vs Sept 2026 timetable" }, { id: "priority", label: "Priority areas" }].forEach(function (c) {
     var btn = document.createElement("button");
     btn.className = "window-btn";
     btn.textContent = c.label;
@@ -1178,7 +1178,7 @@
   }
   function largeAreaText(sa1) {
     var n = DISPLAY.large_areas[sa1].carfree_households_rounded;
-    return "1 rural area, " + (n === 0 || n === null || n === undefined ? "fewer than 10" : "about " + fmtInt(n)) + " homes with no car";
+    return "1 rural area, " + (n === 0 || n === null || n === undefined ? "fewer than 10" : "about " + fmtInt(n)) + " homes without a car";
   }
   function largeAreaLabel(sa1, p) {
     // centre of the shape's largest ring (not the trip-start point, which can
@@ -1266,15 +1266,15 @@
     });
     var html = legendHead();
     if (state.legendCollapsed) { el.innerHTML = html; return; }
-    html += '<div class="view-note" style="margin-top:0;border:0;font-style:normal;color:var(--text)">Trip home leaving hospital at 8:30 pm, compared with today at the same time.' +
-      (state.scenario === "S4" ? " Today = from Sunshine Hospital; S4 = from the Cobblebank site." : "") + '</div>';
+    html += '<div class="view-note" style="margin-top:0;border:0;font-style:normal;color:var(--text)">Trip home leaving hospital at 8:30 pm, compared with the Sept 2026 timetable at the same time.' +
+      (state.scenario === "S4" ? " On the Sept 2026 timetable the trip home starts at Sunshine Hospital; with the Cobblebank site it starts at Cobblebank." : "") + '</div>';
     html += '<div class="status-key">';
     STATUS_CLASSES.forEach(function (c) {
       html += '<div class="status-row" data-k="' + c.id + '" data-n="' + (counts[c.id] || 0) + '"><span class="swatch" style="background:' + c.fill +
         ';border:1px solid #8a8a86"></span><span class="lbl">' + c.label + '</span><span class="cnt">' + (counts[c.id] || 0) + ' areas</span></div>';
     });
     html += '<div class="status-row" data-k="priority31" data-n="' + nP + '"><span class="swatch" style="background:none;border:2px solid #1f1f1d"></span>' +
-      '<span class="lbl">Outlined: priority area today (6 pm)</span><span class="cnt">' + nP + ' areas</span></div>';
+      '<span class="lbl">Outlined: priority area at 6 pm</span><span class="cnt">' + nP + ' areas</span></div>';
     html += '</div><div class="rural-note">Large shapes are rural areas, with few homes.</div>';
     html += contextLegendRows(destinationFor(state.scenario).label);
     el.innerHTML = html;
@@ -1307,8 +1307,8 @@
       if ((counts.high_high || 0) > n0) {
         var nNew = 0;
         allSa1Ids.forEach(function (id) { var r = precFor(state.scenario, id); if (r && r.moved_in === true && r.moved_in_kind === "newly") nNew++; });
-        html += '<div class="why-note">More priority areas here (' + (counts.high_high || 0) + ') than today at 8:30 pm (' + n0 + '). ' +
-          plural(nNew, "area", "areas") + ' had no trip home today and now have one, but it is long.</div>';
+        html += '<div class="why-note">More priority areas here (' + (counts.high_high || 0) + ') than on the Sept 2026 timetable at 8:30 pm (' + n0 + '). ' +
+          plural(nNew, "area", "areas") + ' had no trip home on the Sept 2026 timetable and now have one, but it is long.</div>';
       }
     }
     html += '<div class="status-key">';
@@ -1321,12 +1321,12 @@
     html += '</div>' + RURAL_NOTE;
 
     if (state.scenario !== "S0") {
-      if (EXPORT_MODE) html += '<div class="rural-note">Symbols shown for today’s ' + Object.keys(PRIORITY31).length + ' priority areas only.</div>';
+      if (EXPORT_MODE) html += '<div class="rural-note">Symbols shown only for the ' + Object.keys(PRIORITY31).length + ' priority areas on the Sept 2026 timetable.</div>';
       html += '<div class="status-key" style="margin-top:6px;">' +
-        '<div class="status-row"><span class="swatch swatch-ring"></span><span class="lbl">Helped: left the priority group (vs today)</span><span class="cnt">' + nOut + '</span></div>' +
-        '<div class="status-row"><span class="swatch swatch-sqring"></span><span class="lbl">Got worse: joined the priority group</span><span class="cnt">' + nInW + '</span></div>' +
+        '<div class="status-row"><span class="swatch swatch-ring"></span><span class="lbl">No longer a priority area</span><span class="cnt">' + nOut + '</span></div>' +
+        '<div class="status-row"><span class="swatch swatch-sqring"></span><span class="lbl">Became a priority area</span><span class="cnt">' + nInW + '</span></div>' +
         '<div class="status-row"><span class="swatch swatch-sqring-dash"></span><span class="lbl">Now reachable, but trip still long</span><span class="cnt">' + nInN + '</span></div>' +
-        '<div class="status-row">' + markerSwatch("gained") + '<span class="lbl">' + (state.time === "830pm" ? "Gets a trip home (had none), other areas" : "Gets a complete trip (had none), other areas") + '</span><span class="cnt">' + nGain + '</span></div>' +
+        '<div class="status-row">' + markerSwatch("gained") + '<span class="lbl">' + (state.time === "830pm" ? "Gets a trip home (has none on the Sept 2026 timetable), other areas" : "Gets a complete trip (has none on the Sept 2026 timetable), other areas") + '</span><span class="cnt">' + nGain + '</span></div>' +
         '<div class="status-row">' + markerSwatch("lost") + '<span class="lbl">' + (state.time === "830pm" ? "Loses its trip home" : "Loses its complete trip") + '</span><span class="cnt">' + nLost + '</span></div>' +
         '<div class="status-row"><svg width="11" height="13" style="flex:0 0 auto"><line x1="2" y1="13" x2="2" y2="1" stroke="#000" stroke-width="1.4"/><polygon points="2,1 9,3.5 2,6" fill="#000"/></svg>' +
         '<span class="lbl">Rural-edge area (homes spread ' + fmtInt(B14_CUTOFF_M) + ' m or more from the area centre): result less certain. Flagged, not excluded.</span><span class="cnt">' + nFlag + '</span></div>' +
@@ -1335,8 +1335,8 @@
 
     html += '<details class="cut-details"' + (EXPORT_MODE ? ' open' : '') + '><summary>About the two lines</summary><div class="cut-note">' +
       '<div><b>Access-difficulty cut: ' + fmt(ACCESS_CUT) + ' min</b> for the full round trip (trip there, including waiting, plus trip home). ' +
-      'This is the middle value for Melton today, leaving hospital at 6 pm (' + ACCESS_CUT_N + ' areas). The same line is used for every scenario and both times.</div>' +
-      '<div style="margin-top:3px;"><b>Dependency cut: ' + (DEPENDENCY_CUT * 100).toFixed(1) + '% of households have no car.</b> ' +
+      'This is the middle value for Melton on the Sept 2026 timetable, leaving hospital at 6 pm (' + ACCESS_CUT_N + ' areas). The same line is used for every scenario and both times.</div>' +
+      '<div style="margin-top:3px;"><b>Dependency cut: ' + (DEPENDENCY_CUT * 100).toFixed(1) + '% of households are without a car.</b> ' +
       'The top 10% of the ' + DEPENDENCY_CUT_N + ' areas with a car-ownership measure, kept the same.</div>' +
       '<div style="margin-top:3px;">Priority area = above both lines. These lines sort areas into groups; they are not a judgement of what trip is reasonable.</div>' +
       '</div></details>';
@@ -1357,10 +1357,10 @@
     var el = document.getElementById("ranking-panel");
     if (!isPriority) { el.style.display = "none"; return; }
     if (state.time === "830pm") {
-      var lh = '<h2>Leaving hospital at 8:30 pm</h2><div class="sub">Compared with today at the same time. The same two lines as at 6 pm.</div>' +
-        '<table class="rank"><tr><th></th><th>Helped</th><th>Got worse</th><th>Reach&shy;able, long</th><th>Trip home gained</th><th>Trip home lost</th></tr>';
+      var lh = '<h2>Leaving hospital at 8:30 pm</h2><div class="sub">Compared with the Sept 2026 timetable at the same time. The same two lines as at 6 pm.</div>' +
+        '<table class="rank"><tr><th></th><th>No longer priority</th><th>Became priority</th><th>Reach&shy;able, long</th><th>Gets trip home</th><th>Loses trip home</th></tr>';
       DISPLAY.late_summary.forEach(function (r) {
-        lh += '<tr' + (r.scenario === state.scenario ? ' class="current"' : '') + '><td title="' + scenarioLabel(r.scenario) + '">' + r.scenario + '</td><td>' + r.moved_out +
+        lh += '<tr' + (r.scenario === state.scenario ? ' class="current"' : '') + '><td>' + scenarioLabel(r.scenario) + '</td><td>' + r.moved_out +
           '</td><td>' + r.moved_in_worse + '</td><td>' + r.moved_in_newly_reachable_long + '</td><td>' + r.restored_areas + '</td><td>' + r.lost_areas + '</td></tr>';
       });
       el.innerHTML = lh + '</table>';
@@ -1369,20 +1369,20 @@
     }
     var rows = priority.ranking;
     var html = '<h2>Which change helps most?</h2>' +
-      '<div class="sub">Number of priority areas each change moves out of, and into, the priority group compared with today (leaving hospital at 6 pm). An area only counts as moved out if its trip home gets shorter and neither leg gets longer. The columns are counted separately.</div>' +
-      '<table class="rank"><tr><th></th><th>Helped</th><th>Homes with no car</th><th>Got worse</th><th>Reach&shy;able, long</th></tr>';
+      '<div class="sub">How many areas stop being priority areas, or become priority areas, with each change, compared with the Sept 2026 timetable (leaving hospital at 6 pm). An area only counts as no longer a priority area if its trip home gets shorter and neither leg gets longer. The columns are counted separately.</div>' +
+      '<table class="rank"><tr><th></th><th>No longer priority</th><th>Homes without a car</th><th>Became priority</th><th>Reach&shy;able, long</th></tr>';
     rows.forEach(function (r) {
       var kinds = DISPLAY.moved_in_kind_6pm[r.scenario] || {}, nw = 0, nn = 0;
       Object.keys(kinds).forEach(function (id) { if (kinds[id] === "newly") nn++; else nw++; });
-      html += '<tr' + (r.scenario === state.scenario ? ' class="current"' : '') + '><td title="' + scenarioLabel(r.scenario) + '">' + r.scenario +
+      html += '<tr' + (r.scenario === state.scenario ? ' class="current"' : '') + '><td>' + scenarioLabel(r.scenario) +
         '</td><td>' + r.moved_out + '</td><td>' + fmtInt(r.carfree_households_moved_out) + '</td><td>' + nw + '</td><td>' + nn + '</td></tr>';
     });
     html += '</table>';
 
-    html += '<div class="sub" style="margin-top:8px;">Also compared with today, for all areas (not part of the counts above):</div>' +
-      '<table class="rank"><tr><th>Scenario</th><th>Areas gaining a trip home</th><th>Areas losing a trip home</th><th>Typical change in round trip, min (middle half)</th></tr>';
+    html += '<div class="sub" style="margin-top:8px;">Also compared with the Sept 2026 timetable, for all areas (not part of the counts above):</div>' +
+      '<table class="rank"><tr><th>Change</th><th>Areas that get a trip home</th><th>Areas that lose a trip home</th><th>Typical change in round trip, min (middle half)</th></tr>';
     rows.forEach(function (r) {
-      html += '<tr' + (r.scenario === state.scenario ? ' class="current"' : '') + '><td>' + r.scenario +
+      html += '<tr' + (r.scenario === state.scenario ? ' class="current"' : '') + '><td>' + scenarioLabel(r.scenario) +
         '</td><td>' + r.gained_feasible_journey + '</td><td>' + r.lost_feasible_journey +
         '</td><td>' + signedMin(r.complete_return_delta_median) + '<div class="iqr">' + signedMin(r.complete_return_delta_q25) + ' to ' +
         signedMin(r.complete_return_delta_q75) + '</div></td></tr>';
@@ -1395,21 +1395,21 @@
 
   // ---- Task 5: result cards. Every number comes from MELTON_DATA.display.cards
   // (R/08_export.R, read from the result files); only the words are fixed here.
-  var CARD_TITLES = { S0: "Today", S1: "S1 More frequent buses", S2: "S2 Better bus–train timing", S3: "S3 Later evening buses", S4: "S4 Cobblebank hospital" };
+  var CARD_TITLES = { S0: "Sept 2026 timetable", S1: "More frequent buses", S2: "Bus–train timing", S3: "Later buses", S4: "Cobblebank site" };
   function plural(n, one, many) { return fmtInt(n) + " " + (n === 1 ? one : many); }
   function cardText(id) {
     var c = DISPLAY.cards[id];
-    if (id === "S0") return "Today: " + plural(c.priority_areas, "priority area", "priority areas") + " (about " + fmtInt(c.carfree_households) + " homes with no car).";
-    if (id === "S1") return "6 pm: " + plural(c.helped_6pm, "area", "areas") + " helped (about " + fmtInt(c.households_6pm) + " homes with no car). " +
-      (c.helped_6pm_miss10 === 0 && c.helped_6pm_miss20 === 0 ? "Not kept if you miss one connection."
-        : fmtInt(Math.min(c.helped_6pm_miss10, c.helped_6pm_miss20)) + " kept if you miss one connection.");
-    if (id === "S2") return (c.helped_6pm === 0 && c.helped_830pm === 0 ? "No area helped. " : plural(c.helped_6pm, "area", "areas") + " helped at 6 pm. ") +
+    if (id === "S0") return "Sept 2026 timetable: " + plural(c.priority_areas, "priority area", "priority areas") + " (about " + fmtInt(c.carfree_households) + " homes without a car).";
+    if (id === "S1") return "6 pm: " + plural(c.helped_6pm, "area stops", "areas stop") + " being a priority area (about " + fmtInt(c.households_6pm) + " homes without a car). " +
+      (c.helped_6pm_miss10 === 0 && c.helped_6pm_miss20 === 0 ? "The improvement is lost if you miss one connection."
+        : fmtInt(Math.min(c.helped_6pm_miss10, c.helped_6pm_miss20)) + " still improved if you miss one connection.");
+    if (id === "S2") return (c.helped_6pm === 0 && c.helped_830pm === 0 ? "No area stops being a priority area. " : plural(c.helped_6pm, "area stops", "areas stop") + " being a priority area at 6 pm. ") +
       "At 6 pm, " + fmtInt(c.shorter_6pm) + " round trips get shorter and " + fmtInt(c.longer_6pm) + " get longer.";
-    if (id === "S3") return (c.helped_6pm === 0 && c.moved_in_6pm === 0 && c.changed_6pm === 0 ? "6 pm: no change. " : "6 pm: " + plural(c.helped_6pm, "area", "areas") + " helped. ") +
+    if (id === "S3") return (c.helped_6pm === 0 && c.moved_in_6pm === 0 && c.changed_6pm === 0 ? "6 pm: no change. " : "6 pm: " + plural(c.helped_6pm, "area stops", "areas stop") + " being a priority area. ") +
       "8:30 pm: " + plural(c.priority_restored_830pm, "priority area gets", "priority areas get") + " a trip home (about " +
-      fmtInt(c.priority_restored_households_830pm) + " homes with no car)" + (c.restored_final_ride_routes === 1 ? ", all on one extra bus." : ".");
-    if (id === "S4") return "6 pm: " + plural(c.helped_6pm, "area", "areas") + " helped (about " + fmtInt(c.households_6pm) + " homes with no car). " +
-      "New site on today's network, not a future timetable." + (c.trip_home_longer_830pm > c.trip_home_shorter_830pm ? " At 8:30 pm many trips get longer." : "");
+      fmtInt(c.priority_restored_households_830pm) + " homes without a car)" + (c.restored_final_ride_routes === 1 ? ", all on one extra bus." : ".");
+    if (id === "S4") return "6 pm: " + plural(c.helped_6pm, "area stops", "areas stop") + " being a priority area (about " + fmtInt(c.households_6pm) + " homes without a car). " +
+      "Tested with the Sept 2026 buses and trains, not a future timetable." + (c.trip_home_longer_830pm > c.trip_home_shorter_830pm ? " At 8:30 pm many trips get longer." : "");
     return "";
   }
   function renderCards() {
@@ -1795,7 +1795,7 @@
 
     var pc = prec ? PRIORITY_CLASS_BY_ID[prec.quadrant] : null;
     html += row("Group", pc ? pc.label : "—");
-    html += row("Change vs today", prec ? moveText(sa1, prec) : "—");
+    html += row("Change vs Sept 2026 timetable", prec ? moveText(sa1, prec) : "—");
 
     var noCar;
     if (o.dependency_axis_status === "dependency-eligible" && o.zero_vehicle_share !== null && o.zero_vehicle_share !== undefined) {
@@ -1803,7 +1803,7 @@
     } else {
       noCar = "not used — " + (DEPENDENCY_AXIS_REASON[o.dependency_axis_status] || o.dependency_axis_status);
     }
-    html += row("No car", noCar);
+    html += row("Homes without a car", noCar);
 
     var rural = o.rural_edge === true
       ? "Yes: homes spread " + fmt(o.centroid_dist_m) + " m from the area centre (" + fmtInt(B14_CUTOFF_M) + " m or more). Flagged, not excluded."
@@ -1823,19 +1823,19 @@
   }
 
   function moveText(sa1, prec) {
-    if (state.scenario === "S0") return "— (S0 is the baseline)";
+    if (state.scenario === "S0") return "— (this is the Sept 2026 timetable)";
     if (prec.moved_out === null || prec.moved_out === undefined) return "Not applicable";
     var parts = [];
-    if (prec.moved_out === true) parts.push("Helped: left the priority group");
-    if (prec.moved_in === true) parts.push(prec.moved_in_kind === "newly" ? "Now reachable, but trip still long" : "Got worse: joined the priority group");
-    if (prec.gained) parts.push(state.time === "830pm" ? "Gets a trip home (had none)" : "Gained a complete trip");
+    if (prec.moved_out === true) parts.push("No longer a priority area");
+    if (prec.moved_in === true) parts.push(prec.moved_in_kind === "newly" ? "Now reachable, but trip still long" : "Became a priority area");
+    if (prec.gained) parts.push(state.time === "830pm" ? "Gets a trip home (has none on the Sept 2026 timetable)" : "Gets a complete trip (has none on the Sept 2026 timetable)");
     if (prec.lost) parts.push(state.time === "830pm" ? "Loses its trip home" : "Lost its complete trip");
     if (parts.length) return parts.join("; ");
     var s0 = precFor("S0", sa1);
-    if (!s0 || s0.quadrant === prec.quadrant) return "Same group as S0";
+    if (!s0 || s0.quadrant === prec.quadrant) return "Same group as on the Sept 2026 timetable";
     var s0pc = PRIORITY_CLASS_BY_ID[s0.quadrant];
-    return "Different group from S0 (was: " + (s0pc ? s0pc.label : s0.quadrant) + ")" +
-      (s0.quadrant === "high_high" ? "; does not meet the full moved-out rule" : "");
+    return "Different group from the Sept 2026 timetable (was: " + (s0pc ? s0pc.label : s0.quadrant) + ")" +
+      (s0.quadrant === "high_high" ? "; does not meet the full rule for no longer being a priority area" : "");
   }
 
   function showDetail(sa1) {
@@ -1953,10 +1953,10 @@
   // export layouts (#export=map | chart). Used by tools/make_exports.sh.
   var EXPORT_TITLES = {
     S0: "Where is Sunshine Hospital hardest to reach without a car?",
-    S1: "More frequent buses: which areas are helped?",
-    S2: "Better bus–train timing: which areas are helped?",
-    S3: "Later evening buses: who gets a trip home?",
-    S4: "Hospital at the Cobblebank site: which areas are helped?"
+    S1: "More frequent buses: which areas stop being priority areas?",
+    S2: "Bus–train timing: which areas stop being priority areas?",
+    S3: "Later buses: who gets a trip home?",
+    S4: "Cobblebank site: which areas stop being priority areas?"
   };
   function roundedBar(x, y, w, h, r) {
     r = Math.min(r, w, h / 2);
@@ -1998,7 +1998,7 @@
         var val = r[se.key], w = plotW * val / niceMax;
         if (w > 0) {
           var bar = svgEl("path", { d: roundedBar(left, y, w, barH, 4), fill: se.color });
-          bar.appendChild(svgTitle(CARD_TITLES[r.scenario] + ", " + se.label.toLowerCase() + ": about " + fmtInt(val) + " homes with no car (" + plural(r[se.areas], "area", "areas") + ")"));
+          bar.appendChild(svgTitle(CARD_TITLES[r.scenario] + ", " + se.label.toLowerCase() + ": about " + fmtInt(val) + " homes without a car (" + plural(r[se.areas], "area", "areas") + ")"));
           s.appendChild(bar);
         }
         var vt = svgEl("text", { x: left + w + 8, y: y + barH / 2 + 5, "class": "chart-text" });
@@ -2011,33 +2011,33 @@
   }
   var STATUS_TITLES = {
     S1: "More frequent buses: who has a trip home?",
-    S2: "Better bus–train timing: who has a trip home?",
-    S3: "Later evening buses: who gets a trip home?",
-    S4: "Hospital at the Cobblebank site: who has a trip home?"
+    S2: "Bus–train timing: who has a trip home?",
+    S3: "Later buses: who gets a trip home?",
+    S4: "Cobblebank site: who has a trip home?"
   };
   function setupExport(kind) {
     EXPORT_MODE = true;
     document.body.classList.add("export-mode");
     document.getElementById("export-foot").textContent = DISPLAY.sources + " " + DISPLAY.chart.people_counts_note +
-      " Helped = the trip home gets shorter and no part of the trip gets longer. Timetabled trips on Wed 9 Sep 2026; delays are not modelled.";
+      " An area counts as improved when it stops being a priority area: its trip home gets shorter and no part of the trip gets longer. Timetabled trips on Wed 9 Sep 2026; delays are not modelled.";
     var host = document.getElementById("export-chart");
     if (kind === "chart6") {
       document.body.classList.add("export-chart");
-      document.getElementById("export-title").textContent = "Homes with no car in areas helped, leaving hospital at 6 pm";
-      document.getElementById("export-sub").textContent = "An area is helped when it leaves the priority group (long trip to hospital AND many homes with no car). Compared with today.";
+      document.getElementById("export-title").textContent = "Homes without a car in areas that stop being priority areas, leaving hospital at 6 pm";
+      document.getElementById("export-sub").textContent = "A priority area has a long trip to hospital AND many homes without a car. Compared with the Sept 2026 timetable.";
       drawBars(host, DISPLAY.chart.rows_6pm,
-        [{ key: "households_helped", areas: "areas_helped", label: "Homes with no car in areas helped", short: "", color: "#0072B2" }],
-        "Homes with no car (rounded to the nearest 10)");
+        [{ key: "households_helped", areas: "areas_helped", label: "Homes without a car in areas that stop being priority areas", short: "", color: "#0072B2" }],
+        "Homes without a car (rounded to the nearest 10)");
       return;
     }
     if (kind === "chart830") {
       document.body.classList.add("export-chart");
-      document.getElementById("export-title").textContent = "Homes with no car that gain or lose a trip home, leaving hospital at 8:30 pm";
-      document.getElementById("export-sub").textContent = "Compared with today at 8:30 pm. For S4 the trip home starts at the Cobblebank site, today at Sunshine Hospital.";
+      document.getElementById("export-title").textContent = "Homes without a car that get or lose a trip home, leaving hospital at 8:30 pm";
+      document.getElementById("export-sub").textContent = "Compared with the Sept 2026 timetable at 8:30 pm. For the Cobblebank site the trip home starts at the Cobblebank site; on the Sept 2026 timetable it starts at Sunshine Hospital.";
       drawBars(host, DISPLAY.chart.rows_830pm,
-        [{ key: "households_gain", areas: "areas_gain", label: "Gain a trip home (had none)", short: "Gain", color: "#0072B2" },
+        [{ key: "households_gain", areas: "areas_gain", label: "Get a trip home", short: "Get", color: "#0072B2" },
          { key: "households_lose", areas: "areas_lose", label: "Lose their trip home", short: "Lose", color: "#D55E00" }],
-        "Homes with no car (rounded to the nearest 10)");
+        "Homes without a car (rounded to the nearest 10)");
       return;
     }
     var title = useStatusView() ? STATUS_TITLES[state.scenario] : EXPORT_TITLES[state.scenario];
@@ -2048,7 +2048,7 @@
   // 8:30 pm subtitle, from display.chart.rows_830pm (late_window_summary.csv)
   function lateStatusText(scen) {
     var r = DISPLAY.chart.rows_830pm.filter(function (x) { return x.scenario === scen; })[0];
-    var txt = "8:30 pm: " + plural(r.areas_gain, "area gains", "areas gain") + " a trip home (about " + fmtInt(r.households_gain) + " homes with no car), " +
+    var txt = "8:30 pm: " + plural(r.areas_gain, "area gets", "areas get") + " a trip home (about " + fmtInt(r.households_gain) + " homes without a car), " +
       (r.areas_lose === 0 ? "none lose one." : fmtInt(r.areas_lose) + " lose one (about " + fmtInt(r.households_lose) + ").");
     if (scen === "S4") txt += " The trip home starts at the Cobblebank site.";
     if (scen === "S3" && DISPLAY.cards.S3.restored_final_ride_routes === 1) txt += " All " + fmtInt(r.areas_gain) + " depend on one extra bus.";
