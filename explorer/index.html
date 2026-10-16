@@ -2,272 +2,278 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <title>Melton &rarr; Sunshine Hospital: Access Explorer</title>
 <style>
-  /* Design polish (Oct 2026): display only. Chrome is cool neutral + one dark
-     ink, so nothing around the map competes with the map's own colours.
-     System fonts only (offline): Segoe UI Variable on Windows 11. */
+  /* Explorer redesign (Oct 2026): display only. The map fills the screen; the
+     time you leave hospital is the main control, and the page chrome (not the
+     map) turns from overcast to dusk at 8:30 pm. Map colours are unchanged.
+     One type family, Atkinson Hyperlegible Next (SIL OFL), local files in
+     fonts/. SVG map labels and chart text keep their own font, as before. */
+  @font-face { font-family: "Atkinson Hyperlegible Next"; font-style: normal; font-weight: 400; font-display: swap;
+    src: url("fonts/atkinson-hyperlegible-next-latin-400-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Atkinson Hyperlegible Next"; font-style: normal; font-weight: 600; font-display: swap;
+    src: url("fonts/atkinson-hyperlegible-next-latin-600-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Atkinson Hyperlegible Next"; font-style: normal; font-weight: 700; font-display: swap;
+    src: url("fonts/atkinson-hyperlegible-next-latin-700-normal.woff2") format("woff2"); }
+
   :root {
-    --bg: #eef1f3;          /* page and bands */
-    --panel: #ffffff;       /* surfaces */
-    --border: #cdd4da;      /* rules */
-    --rule-soft: #e3e8ec;
-    --text: #15222e;        /* ink */
-    --ink-soft: #3a4651;
-    --muted: #4f5b66;       /* 7:1 on white */
-    --accent: #15222e;      /* active state = ink, not a map colour */
-    --tint: #e4eaef;        /* current row, notes */
-    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-    --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --ink: #1C2530;          /* text, selected state: 15.48:1 on white */
+    --overcast: #E8EDF0;     /* 6 pm chrome */
+    --dusk: #2F3654;         /* 8:30 pm chrome */
+    --dusk-ink: #EEF0F7;     /* text on dusk: 10.38:1 */
+    --panel: #FFFFFF;
+    --muted: #4A5662;        /* 7.50:1 on white, 6.36:1 on overcast */
+    --dusk-muted: #C3C8DA;   /* 7.09:1 on dusk */
+    --rule: #C9D1D8;         /* decorative rules only */
+    --edge: #7B8794;         /* control borders: 3.66:1 on white, 3.10:1 on overcast */
+    --dusk-edge: #9AA3C2;    /* control borders on dusk: 4.72:1 */
+    --tint: #E8EDF0;         /* selected row, notes */
+    --hover: #F3F5F7;
+    /* the chrome follows the time (set by render() on <body>) */
+    --chrome: var(--overcast);
+    --chrome-ink: var(--ink);
+    --chrome-muted: var(--muted);
+    --chrome-edge: var(--edge);
+    --chrome-hover: rgba(28, 37, 48, 0.08);
+    /* names the drawing and legend code already uses */
+    --text: var(--ink);
+    --ink-soft: var(--muted);
+    --bg: var(--tint);
+    --border: var(--rule);
+    --rule-soft: #E3E8EC;
+    --accent: var(--ink);
+    --font: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    --font-display: var(--font);
+    --left-w: 296px;
+    --right-w: 374px;
+    --peek: 52px;
+  }
+  body[data-dusk="1"] {
+    --chrome: var(--dusk);
+    --chrome-ink: var(--dusk-ink);
+    --chrome-muted: var(--dusk-muted);
+    --chrome-edge: var(--dusk-edge);
+    --chrome-hover: rgba(238, 240, 247, 0.12);
   }
   * { box-sizing: border-box; }
+  html { height: 100%; }
   body {
     margin: 0;
+    height: 100vh; height: 100dvh;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     font-family: var(--font);
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.45;
-    background: var(--bg);
-    color: var(--text);
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
+    color: var(--ink);
+    background: var(--chrome);
     -webkit-font-smoothing: antialiased;
   }
-  button, select { font-family: inherit; }
-  :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  button, select, input { font-family: inherit; font-size: inherit; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .chrome :focus-visible { outline-color: var(--chrome-ink); }
+  .vh { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  /* the only motion that is not a direct answer to a click: overcast -> dusk */
+  .chrome { transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
+  body.preload *, body.preload *::before, body.preload *::after { transition: none !important; }
 
-  /* ---- header ---- */
-  header {
-    padding: 12px 24px 10px 24px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
+  /* ---- header: title + toolbar, one line ---- */
+  #app-head {
+    position: relative; z-index: 30;
+    display: flex; align-items: center; gap: 16px 24px;
+    padding: 8px 20px;
+    min-height: 54px;
+    background: var(--chrome); color: var(--chrome-ink);
+    border-bottom: 1px solid var(--rule);
   }
-  header h1 {
-    font-family: var(--font-display);
-    font-size: 22px; font-weight: 650; line-height: 1.2;
-    letter-spacing: -0.01em;
-    margin: 0 0 3px 0;
+  #app-head h1 { margin: 0; font-size: 20px; line-height: 26px; font-weight: 600; white-space: nowrap; }
+  .toolbar { margin-left: auto; display: flex; align-items: center; gap: 10px 20px; flex-wrap: wrap; justify-content: flex-end; }
+  .control-group { display: flex; align-items: center; gap: 8px; }
+  .grouplabel { color: var(--chrome-muted); font-weight: 600; }
+  .seg { display: inline-flex; }
+  /* segmented buttons, on the chrome colour */
+  button.view-btn, button.window-btn, .chrome-btn {
+    min-height: 34px; padding: 4px 12px;
+    border: 1px solid var(--chrome-edge); border-radius: 0; margin-left: -1px;
+    background: transparent; color: var(--chrome-ink);
+    line-height: 1.2; white-space: nowrap; cursor: pointer;
   }
-  header .sub { font-size: 15px; color: var(--muted); }
+  .seg > button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+  .seg > button:last-child { border-radius: 0 6px 6px 0; }
+  .seg > button:only-child { border-radius: 6px; }
+  button.view-btn:hover, button.window-btn:hover, .chrome-btn:hover { background: var(--chrome-hover); }
+  button.view-btn.active, button.window-btn.active {
+    background: var(--chrome-ink); color: var(--chrome); border-color: var(--chrome-ink);
+    position: relative; z-index: 1; font-weight: 600;
+  }
+  button.view-btn:disabled, button.window-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .chrome-btn { border-radius: 6px; margin-left: 0; display: inline-flex; align-items: center; gap: 6px; }
+  .chrome-btn .chev { font-size: 0.8em; transition: transform 0.2s ease; }
+  .chrome-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  #options-toggle { display: none; }
+  #about-panel {
+    position: absolute; top: calc(100% + 6px); right: 20px; z-index: 40;
+    width: min(540px, calc(100vw - 32px));
+    padding: 14px 18px; border: 1px solid var(--edge); border-radius: 8px;
+    background: var(--panel); color: var(--ink);
+  }
+  #about-panel p { margin: 0; }
+  #about-panel .about-title { font-weight: 600; margin-bottom: 6px; }
+  #about-panel .sub { color: var(--muted); }
 
-  /* ---- controls: labelled segmented groups ---- */
-  .controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 28px;
-    align-items: center;
-    padding: 9px 24px;
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
-    font-size: 14px;
-  }
-  .control-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .control-group .grouplabel { color: var(--muted); font-weight: 600; }
-  .control-group > div { display: inline-flex; }
-  /* scenario picker on its own row, after the view switches */
-  .control-group:has(#scenario-buttons) { order: 10; flex-basis: 100%; }
-  button.scenario-btn, button.window-btn, button.view-btn {
-    padding: 5px 13px;
-    min-height: 33px;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    color: var(--text);
-    border-radius: 0;
-    margin-left: -1px;
-    cursor: pointer;
-    font-size: 14px;
-    line-height: 1.2;
-    white-space: nowrap;
-  }
-  .control-group > div > button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
-  .control-group > div > button:last-child { border-radius: 0 6px 6px 0; }
-  .control-group > div > button:only-child { border-radius: 6px; }
-  button.scenario-btn:hover, button.window-btn:hover, button.view-btn:hover { background: var(--bg); }
-  button.scenario-btn.active, button.window-btn.active, button.view-btn.active {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent);
-    position: relative; z-index: 1;
-    font-weight: 600;
-  }
-  button.scenario-btn:disabled {
-    color: #8b949c;
-    background: var(--bg);
-    cursor: not-allowed;
-  }
-  button.window-btn:disabled, select#metric-select:disabled { color: #8b949c; background: var(--bg); cursor: not-allowed; }
-  select#metric-select {
-    padding: 5px 8px; min-height: 34px; font-size: 14px;
-    border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text);
-  }
-  .helped-def {
-    font-size: 14px; color: var(--ink-soft);
-    border-left: 3px solid var(--text); padding: 2px 0 2px 10px; margin-left: 8px;
-  }
-
-  /* ---- scenario line and result cards ---- */
-  #scenario-desc {
-    padding: 8px 24px; background: var(--bg);
-    font-size: 15px; color: var(--text);
-  }
-  #scenario-desc b { font-weight: 650; margin-right: 4px; }
-  #cards {
-    display: flex; gap: 10px; padding: 0 24px 12px 24px;
-    background: var(--bg); border-bottom: 1px solid var(--border); overflow-x: auto;
-  }
-  .card {
-    flex: 1 1 0; min-width: 180px;
-    border: 1px solid var(--border); border-radius: 8px;
-    padding: 8px 12px 9px 12px;
-    background: var(--panel); color: var(--text);
-    cursor: pointer; font-size: 14px; line-height: 1.38;
-  }
-  .card:hover { border-color: var(--ink-soft); }
-  .card .card-h { font-family: var(--font-display); font-weight: 650; font-size: 15.5px; margin-bottom: 3px; }
-  .card .card-t { color: var(--ink-soft); }
-  .card.active { background: var(--text); border-color: var(--text); color: #fff; }
-  .card.active .card-t { color: #e8edf1; }
-
-  /* ---- main: map + side panel ---- */
-  main {
-    flex: 1;
-    display: flex;
+  /* ---- shell: [left | map | right] ---- */
+  #shell {
+    display: grid;
+    grid-template-columns: var(--left-w) minmax(0, 1fr) var(--right-w);
     min-height: 0;
   }
-  #map-wrap {
-    flex: 1;
-    position: relative;
-    background: #ffffff;
-    overflow: hidden;
-    display: flex;          /* legend docked in its own column, left of the map */
-    flex-direction: row;
-    min-width: 0;
+  @media (min-width: 1500px) { :root { --left-w: 340px; --right-w: 370px; } }
+  @media (min-width: 1800px) { :root { --left-w: 360px; --right-w: 400px; } }
+
+  /* left column: when, then which change */
+  #left { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--rule); }
+  .when { background: var(--chrome); color: var(--chrome-ink); padding: 14px 18px 16px 18px; border-bottom: 1px solid var(--rule); }
+  .when-label, fieldset.timeswitch > legend { display: block; padding: 0; margin: 0 0 8px 0; font-size: 15px; font-weight: 600; }
+  fieldset.timeswitch { border: 0; margin: 0; padding: 0; min-width: 0; }
+  .ts { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border: 1.5px solid var(--chrome-edge); border-radius: 12px; }
+  .ts label {
+    position: relative; display: flex; align-items: baseline; justify-content: center; gap: 5px;
+    padding: 6px 6px 8px 6px; border-radius: 8px; cursor: pointer; color: var(--chrome-ink);
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
+  .ts input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+  .ts .num { font-size: 40px; line-height: 44px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .ts .ampm { font-size: 17px; font-weight: 600; }
+  .ts label:hover { background: var(--chrome-hover); }
+  .ts label:has(input:checked) { background: var(--chrome-ink); color: var(--chrome); }
+  .ts label:has(input:focus-visible) { outline: 2px solid var(--chrome-ink); outline-offset: 2px; }
+  .when .control-group { flex-direction: column; align-items: stretch; gap: 6px; margin-top: 14px; }
+  .when .control-group:first-child { margin-top: 0; }
+  .when .grouplabel { color: var(--chrome-ink); }
+  .when .seg { display: flex; flex-direction: column; }
+  .when .seg > button { border-radius: 0; margin: -1px 0 0 0; text-align: left; white-space: normal; padding: 6px 12px; }
+  .when .seg > button:first-child { border-radius: 6px 6px 0 0; margin-top: 0; }
+  .when .seg > button:last-child { border-radius: 0 0 6px 6px; }
+  #window-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  #window-buttons > button { border-radius: 6px; margin: 0; text-align: center; white-space: normal; padding: 5px 8px; }
+  select#metric-select, select#scenario-select, select#area-select {
+    width: 100%; min-height: 36px; padding: 5px 8px;
+    border: 1px solid var(--edge); border-radius: 6px; background: var(--panel); color: var(--ink);
+  }
+  select#metric-select:disabled { opacity: 0.55; }
+
+  .changes { padding: 14px 18px 18px 18px; }
+  .changes h2 { margin: 0 0 8px 0; font-size: 17px; line-height: 22px; font-weight: 600; }
+  #scenario-pick { display: none; }
+  /* one list: each row is a scenario and its result */
+  #cards { border-top: 1px solid var(--rule); }
+  .card {
+    display: grid; grid-template-columns: 20px minmax(0, 1fr); column-gap: 10px;
+    padding: 9px 10px 10px 8px;
+    border-bottom: 1px solid var(--rule); border-left: 4px solid transparent;
+    background: var(--panel); cursor: pointer;
+  }
+  .card:hover { background: var(--hover); }
+  .card input[type="radio"] {
+    grid-row: 1; grid-column: 1; appearance: none; -webkit-appearance: none;
+    width: 18px; height: 18px; margin: 2px 0 0 0; border: 2px solid var(--edge); border-radius: 50%;
+    background: var(--panel); cursor: pointer;
+  }
+  .card input[type="radio"]:checked { border-color: var(--ink); background: radial-gradient(circle, var(--ink) 0 4px, var(--panel) 4.5px); }
+  .card input[type="radio"]:disabled { opacity: 0.5; cursor: not-allowed; }
+  .card .card-h { grid-column: 2; font-weight: 600; cursor: pointer; }
+  .card .card-t { grid-column: 2; color: var(--muted); }
+  .card.active { background: var(--tint); border-left-color: var(--ink); }
+  .card.active .card-h { font-weight: 700; }
+  .card.active .card-t { color: var(--ink); }
+  #scenario-desc { margin-top: 12px; }
+  #scenario-desc b { font-weight: 600; }
+  .helped-def { margin: 10px 0 0 0; padding-left: 10px; border-left: 3px solid var(--edge); color: var(--muted); }
+
+  /* ---- map ---- */
+  #map-area { position: relative; display: flex; min-width: 0; min-height: 0; background: #ffffff; }
+  #map-wrap { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: row; min-width: 0; }
   #map-svg { flex: 1 1 auto; min-width: 0; cursor: grab; touch-action: none; user-select: none; }
+  #map-svg:focus-visible { outline: 3px solid var(--ink); outline-offset: -3px; }
   #map-svg.dragging { cursor: grabbing; }
   #map-nav {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    z-index: 6;
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-    background: var(--panel);
-    box-shadow: 0 1px 4px rgba(21, 34, 46, 0.14);
+    position: absolute; top: 14px; right: 14px; z-index: 6;
+    display: flex; flex-direction: column;
+    border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; background: var(--panel);
   }
   #map-nav button {
-    width: 36px;
-    height: 34px;
-    padding: 0;
-    border: 0;
-    border-bottom: 1px solid var(--rule-soft);
-    background: var(--panel);
-    color: var(--text);
-    font: 600 18px/1 var(--font);
-    cursor: pointer;
+    width: 40px; height: 38px; padding: 0; border: 0; border-bottom: 1px solid var(--rule);
+    background: var(--panel); color: var(--ink); font: 600 19px/1 var(--font); cursor: pointer;
   }
-  #map-nav button:last-child { border-bottom: 0; font-size: 15px; }
-  #map-nav button:hover { background: var(--bg); }
+  #map-nav button:last-child { border-bottom: 0; font-size: 16px; }
+  #map-nav button:hover { background: var(--hover); }
+  #map-nav button:focus-visible { outline-offset: -3px; }
   #stub-banner {
-    position: absolute;
-    top: 14px; left: 50%;
-    transform: translateX(-50%);
-    background: #fff3cd;
-    border: 1px solid #e0c260;
-    color: #5c4700;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 14px;
-    display: none;
-    z-index: 5;
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    background: #fff3cd; border: 1px solid #e0c260; color: #5c4700;
+    padding: 8px 16px; border-radius: 6px; display: none; z-index: 5;
   }
 
-  /* ---- legend (sizes in em so the export layouts can scale it) ---- */
-  #legend {
-    order: -1;
-    flex: 0 0 380px;
-    width: 380px;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    overflow-y: auto;
-    padding: 14px 16px 16px 24px;
-    font-size: 14px;
-    line-height: 1.35;
-  }
-  /* "Hide legend": the column collapses to a small box over the map's top-left
-     corner and the map re-fits to the full width (class set in render()) */
-  #map-wrap.legend-collapsed #legend {
-    position: absolute; z-index: 5; left: 12px; top: 12px;
-    flex: none; width: auto; max-width: 360px;
-    border: 1px solid var(--border); border-radius: 8px;
-    padding: 7px 8px 7px 14px; box-shadow: 0 1px 6px rgba(21, 34, 46, 0.14);
-  }
-  #map-wrap.legend-collapsed #legend .legend-head { margin-bottom: 0; }
-  /* scrolling columns: keep the scrollbar visible (Windows 11 hides overlay
-     scrollbars) and fade the bottom edge while there is more below */
-  #legend, aside#detail { scrollbar-width: thin; scrollbar-color: #8d98a2 transparent; }
-  aside#detail::after {
-    content: ""; display: block; position: sticky; bottom: 0;
-    height: 28px; margin: 0 0 -20px 0;
+  /* ---- right column: map key, ranking, area detail ---- */
+  div#detail { display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-left: 1px solid var(--rule); }
+  #detail-inner { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #8d98a2 transparent; }
+  #left { scrollbar-width: thin; scrollbar-color: #8d98a2 transparent; }
+  #sheet-handle { display: none; }
+  /* scrolling columns: fade the bottom edge so it shows there is more below */
+  #left::after, #detail-inner::after {
+    content: ""; display: block; position: sticky; bottom: 0; flex: 0 0 auto;
+    height: 28px; margin-top: -28px;
     background: linear-gradient(rgba(255, 255, 255, 0), #ffffff 85%);
     pointer-events: none;
   }
-  /* smaller screens and projectors: tighter columns and bands, same text sizes */
-  @media (max-width: 1499px) {
-    header, .controls, #scenario-desc { padding-left: 16px; padding-right: 16px; }
-    #cards { padding-left: 16px; padding-right: 16px; gap: 8px; }
-    #legend { flex-basis: 330px; width: 330px; padding-left: 16px; }
-    aside#detail { flex-basis: 330px; width: 330px; padding-left: 16px; padding-right: 16px; }
-  }
-  @media (max-height: 860px) {
-    header { padding-top: 8px; padding-bottom: 7px; }
-    header h1 { font-size: 19px; margin-bottom: 1px; }
-    .controls { padding-top: 6px; padding-bottom: 6px; gap: 6px 24px; }
-    button.scenario-btn, button.window-btn, button.view-btn { min-height: 30px; padding-top: 3px; padding-bottom: 3px; }
-    #scenario-desc { padding-top: 5px; padding-bottom: 5px; }
-    #cards { padding-bottom: 8px; }
-    .card { padding: 6px 10px 7px 10px; line-height: 1.32; }
-    .card .card-h { font-size: 15px; margin-bottom: 1px; }
-    #legend, aside#detail { padding-top: 10px; }
-  }
-  /* narrow screens: legend floats over the map again */
-  @media (max-width: 1099px) {
-    #legend {
-      position: absolute; z-index: 5; left: 12px; top: 12px; width: 330px;
-      max-width: calc(100% - 24px); max-height: calc(100% - 24px);
-      border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px 12px 14px;
-      box-shadow: 0 1px 6px rgba(21, 34, 46, 0.14);
-    }
-  }
+  .changes { padding-bottom: 30px; }
+  .rsec:last-child { padding-bottom: 30px; }
+  .about-phone { display: none; }
+  .rsec { padding: 14px 18px 16px 18px; border-bottom: 1px solid var(--rule); }
+  .rsec:last-child { border-bottom: 0; }
+  div#detail h2 { margin: 0 0 8px 0; font-size: 17px; line-height: 22px; font-weight: 600; }
+  #key-section h2 { margin-bottom: 4px; }
+  /* the legend button sits on the "Map key" heading line, so the key's own
+     title gets the full width */
+  #key-section { position: relative; }
+  #key-section .legend-toggle { position: absolute; top: 9px; right: 18px; }
+  #key-section .legend-head { margin-bottom: 4px; }
+
+  /* legend (sizes in em so the export layouts can scale it) */
+  #legend { line-height: 1.35; }
+  /* "Hide legend": a compact key stays -- the head line and the colour rows
+     (swatch + label; the ramp in Travel times). Counts, notes, symbols and
+     context rows are hidden, not removed, so the legend counts stay in the page. */
+  div#detail.legend-collapsed #legend > :not(.legend-head):not(.key-main):not(.ramp):not(.ramp-labels) { display: none; }
+  div#detail.legend-collapsed #legend .key-main { margin-top: 0; gap: 1px; }
+  div#detail.legend-collapsed #legend .key-main .cnt { display: none; }
   #legend .ramp { height: 10px; border-radius: 2px; margin: 4px 0; }
   #legend .ramp-labels { display: flex; justify-content: space-between; color: var(--muted); font-variant-numeric: tabular-nums; }
-  #legend .legend-title { font-weight: 650; margin-bottom: 3px; }
-  #legend .legend-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-  #legend .legend-head .legend-title { flex: 1; margin-bottom: 0; font-family: var(--font-display); font-size: 1.07em; }
+  #legend .legend-title { font-weight: 600; margin-bottom: 3px; }
+  #legend .legend-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  #legend .legend-head .legend-title { flex: 1; margin-bottom: 0; }
   #legend .legend-toggle {
-    flex: 0 0 auto; padding: 3px 9px; font-size: 0.93em; border: 1px solid var(--border);
-    background: var(--panel); border-radius: 5px; cursor: pointer; color: var(--text);
+    flex: 0 0 auto; min-height: 30px; padding: 3px 10px; border: 1px solid var(--edge);
+    background: var(--panel); border-radius: 6px; cursor: pointer; color: var(--ink);
   }
-  #legend .legend-toggle:hover { background: var(--bg); }
-  #legend .legend-lead { font-size: 1em; font-weight: 700; margin: 3px 0 6px 0; display: flex; gap: 6px; align-items: center; }
+  #legend .legend-toggle:hover { background: var(--hover); }
+  #legend .legend-lead { font-weight: 700; margin: 3px 0 6px 0; display: flex; gap: 6px; align-items: center; }
   #legend .status-key { display: flex; flex-direction: column; gap: 3px; margin-top: 5px; }
   #legend .status-row { display: flex; align-items: center; gap: 8px; }
-  #legend .status-row span.lbl { color: var(--text); }
+  #legend .status-row span.lbl { color: var(--ink); }
   #legend .cnt { color: var(--muted); margin-left: auto; padding-left: 10px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  #legend .view-note {
-    margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--rule-soft);
-    color: var(--muted);
-  }
+  #legend .view-note { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--rule-soft); color: var(--muted); }
   #legend .cut-note { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--rule-soft); color: var(--muted); }
-  #legend .cut-note b { color: var(--text); font-weight: 600; }
+  #legend .cut-note b { color: var(--ink); font-weight: 600; }
   #legend .scenario-note,
-  #legend .why-note { margin: 3px 0 7px 0; padding: 5px 8px; background: var(--tint); border-left: 3px solid var(--text); border-radius: 0 4px 4px 0; color: var(--text); }
-  #legend details.cut-details > summary { cursor: pointer; color: var(--text); font-weight: 600; margin-top: 7px; text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; }
+  #legend .why-note { margin: 3px 0 7px 0; padding: 5px 8px; background: var(--tint); border-left: 3px solid var(--ink); color: var(--ink); }
+  #legend details.cut-details > summary { cursor: pointer; color: var(--ink); font-weight: 600; margin-top: 7px; text-decoration: underline; text-decoration-color: var(--edge); text-underline-offset: 3px; }
   #legend .rural-note { margin-top: 4px; color: var(--muted); }
-  .legend-note-line { font-weight: 600; margin: 5px 0 2px 0; color: var(--text); }
+  .legend-note-line { font-weight: 600; margin: 5px 0 2px 0; color: var(--ink); }
 
   /* legend swatches: map symbols, unchanged */
   .swatch { flex: 0 0 auto; width: 11px; height: 11px; }
@@ -299,54 +305,124 @@
   .swatch-sqring-dash { border: 2px dashed #000; background: none; width: 13px; height: 13px; }
   .swatch-nodata { background: #d4d4d0; border: 1px solid #8a8a86; }
 
-  /* ---- side panel ---- */
-  aside#detail {
-    width: 372px;
-    flex: 0 0 372px;
-    border-left: 1px solid var(--border);
-    background: var(--panel);
-    padding: 16px 20px 20px 20px;
-    overflow-y: auto;
-    font-size: 14px;
-  }
-  aside#detail h2 {
-    font-family: var(--font-display);
-    font-size: 17px; font-weight: 650; line-height: 1.25;
-    margin: 0 0 8px 0;
-  }
-  aside#detail table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-  aside#detail td { padding: 3px 0; vertical-align: top; }
-  aside#detail td.k { color: var(--muted); width: 55%; padding-right: 8px; }
-  aside#detail .section-h {
-    font-weight: 650; margin-top: 14px; margin-bottom: 3px; padding-top: 8px;
-    border-top: 1px solid var(--rule-soft); color: var(--text);
-  }
-  .iqr { color: var(--muted); font-size: 13px; white-space: nowrap; }
-  aside#detail .placeholder { color: var(--muted); }
-  aside#detail .summary { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: var(--bg); }
-  aside#detail .summary .sa1 { font-family: var(--font-display); font-size: 17px; font-weight: 700; }
-  aside#detail .summary .ctx { color: var(--muted); font-size: 14px; margin-bottom: 5px; }
-  aside#detail .summary td.k { width: 48%; }
-  aside#detail details.tech { margin-top: 12px; }
-  aside#detail details.tech > summary { cursor: pointer; font-weight: 600; color: var(--text); }
-  #ranking-panel { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--border); display: none; }
+  /* ranking */
+  #ranking-panel { display: none; }
   #ranking-panel h2 { margin-bottom: 4px; }
-  #ranking-panel .sub { color: var(--muted); font-size: 14px; margin-bottom: 8px; }
-  #ranking-panel table.rank { width: 100%; border-collapse: collapse; margin: 4px 0; }
-  #ranking-panel table.rank th, #ranking-panel table.rank td { padding: 5px 5px; border-bottom: 1px solid var(--rule-soft); text-align: right; }
+  #ranking-panel .sub { color: var(--muted); margin-bottom: 8px; }
+  .tscroll { overflow-x: auto; }
+  #ranking-panel table.rank { width: 100%; border-collapse: collapse; margin: 4px 0; font-variant-numeric: tabular-nums; }
+  #ranking-panel table.rank th, #ranking-panel table.rank td { padding: 5px 4px; border-bottom: 1px solid var(--rule-soft); text-align: right; }
   #ranking-panel table.rank th:first-child, #ranking-panel table.rank td:first-child { text-align: left; padding-left: 6px; }
-  #ranking-panel table.rank th { font-weight: 600; color: var(--muted); font-size: 13px; line-height: 1.25; vertical-align: bottom; border-bottom: 1px solid var(--border); }
-  #ranking-panel table.rank td { font-size: 14px; }
-  #ranking-panel table.rank tr.current td { background: var(--tint); font-weight: 650; }
-  #ranking-panel table.rank tr.current td:first-child { box-shadow: inset 3px 0 0 var(--text); }
-  #ranking-panel .s3-note { margin-top: 8px; padding: 6px 9px; background: var(--tint); border-left: 3px solid var(--text); border-radius: 0 4px 4px 0; }
+  #ranking-panel table.rank th { font-weight: 600; color: var(--muted); font-size: 14px; line-height: 1.25; vertical-align: bottom; border-bottom: 1px solid var(--rule); }
+  #ranking-panel table.rank tr.current td { background: var(--tint); font-weight: 700; }
+  #ranking-panel table.rank tr.current td:first-child { box-shadow: inset 4px 0 0 var(--ink); }
+  /* 8:30 pm table: the change's name on its own row, numbers below */
+  #ranking-panel table.rank.split td:first-child { text-align: right; padding-left: 4px; }
+  #ranking-panel table.rank.split th.rname { text-align: left; color: var(--ink); font-size: 15px; font-weight: 600; border-bottom: 0; padding: 7px 6px 0 6px; }
+  #ranking-panel table.rank.split tbody.current th, #ranking-panel table.rank.split tbody.current td { background: var(--tint); font-weight: 700; }
+  #ranking-panel table.rank.split tbody.current th.rname { box-shadow: inset 4px 0 0 var(--ink); }
+  #ranking-panel table.rank.split tbody.current td:first-child { box-shadow: inset 4px 0 0 var(--ink); }
+  #ranking-panel .s3-note { margin-top: 8px; padding: 6px 9px; background: var(--tint); border-left: 3px solid var(--ink); }
 
-  footer {
-    padding: 7px 24px;
-    border-top: 1px solid var(--border);
-    background: var(--panel);
-    font-size: 13px;
-    color: var(--muted);
+  /* area detail */
+  .area-pick { margin-bottom: 10px; }
+  .area-pick label { display: block; font-weight: 600; margin-bottom: 4px; }
+  div#detail table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  div#detail td { padding: 3px 0; vertical-align: top; }
+  div#detail td.k { color: var(--muted); width: 55%; padding-right: 8px; }
+  div#detail .section-h { font-weight: 600; margin-top: 14px; margin-bottom: 3px; padding-top: 8px; border-top: 1px solid var(--rule-soft); }
+  .iqr { color: var(--muted); font-size: 14px; white-space: nowrap; }
+  div#detail .placeholder { color: var(--muted); }
+  div#detail .summary { border: 1px solid var(--rule); border-left: 4px solid var(--ink); padding: 10px 12px; background: var(--panel); }
+  div#detail .summary .sa1 { font-size: 17px; font-weight: 700; }
+  div#detail .summary .ctx { color: var(--muted); margin-bottom: 5px; }
+  div#detail .summary td.k { width: 48%; }
+  div#detail details.tech { margin-top: 12px; }
+  div#detail details.tech > summary { cursor: pointer; font-weight: 600; }
+
+  footer#app-footer {
+    padding: 6px 20px; font-size: 14px; line-height: 19px;
+    background: var(--chrome); color: var(--chrome-muted); border-top: 1px solid var(--rule);
+  }
+
+  /* laptop widths: a little more line length in the right column */
+  @media (max-width: 1499px) and (min-width: 1100px) {
+    .rsec { padding-left: 14px; padding-right: 14px; }
+    #key-section .legend-toggle { right: 14px; }
+  }
+  /* lower laptop screens: same text sizes, tighter blocks */
+  @media (max-height: 820px) and (min-width: 1100px) {
+    #app-head { min-height: 50px; padding-top: 6px; padding-bottom: 6px; }
+    .when { padding-top: 10px; padding-bottom: 12px; }
+    .ts .num { font-size: 34px; line-height: 38px; }
+    .changes { padding-top: 10px; }
+    .card { padding-top: 6px; padding-bottom: 7px; line-height: 1.38; }
+    .rsec { padding-top: 10px; padding-bottom: 10px; }
+    #key-section .legend-toggle { top: 5px; }
+  }
+
+  /* ---- narrow screens and phones: top bar + bottom sheet ---- */
+  @media (max-width: 1099px) {
+    body { padding-bottom: var(--peek); }
+    #app-head { padding: 6px 12px; min-height: 48px; gap: 10px; }
+    #app-head h1 { font-size: 18px; white-space: normal; }
+    #options-toggle { display: inline-flex; margin-left: auto; }
+    .toolbar {
+      display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 40;
+      margin: 0; padding: 12px 16px; justify-content: flex-start; flex-direction: column; align-items: flex-start;
+      background: var(--chrome); border-bottom: 1px solid var(--rule);
+    }
+    body.options-open .toolbar { display: flex; }
+    .toolbar .control-group { flex-wrap: wrap; }
+    #about-panel { position: fixed; top: 56px; left: 16px; right: 16px; width: auto; }
+    #shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+    #left { overflow: visible; border-right: 0; border-bottom: 1px solid var(--rule); }
+    .when { padding: 8px 16px 10px 16px; }
+    fieldset.timeswitch { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 12px; }
+    fieldset.timeswitch > legend { float: left; margin: 0; }
+    .ts .num { font-size: 28px; line-height: 32px; }
+    .ts .ampm { font-size: 15px; }
+    .ts label { padding: 3px 6px 5px 6px; }
+    .when .control-group { margin-top: 8px; }
+    .changes { padding: 8px 16px 10px 16px; }
+    .changes h2 { display: none; }
+    #scenario-pick { display: block; }
+    #scenario-pick label { display: block; font-weight: 600; margin-bottom: 4px; }
+    #cards { border-top: 0; }
+    .card:not(.active) { display: none; }
+    .card.active { display: block; padding: 6px 0 0 0; border: 0; background: transparent; }
+    .card.active input, .card.active .card-h { display: none; }
+    #scenario-desc { display: none; }
+    .helped-def { margin-top: 6px; font-size: 14px; }
+    div#detail {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 35;
+      height: 85vh; height: 85dvh;
+      border-left: 0; border-top: 1px solid var(--edge); border-radius: 12px 12px 0 0;
+      transform: translateY(calc(100% - var(--peek)));
+      transition: transform 0.25s ease;
+      box-shadow: 0 -2px 10px rgba(28, 37, 48, 0.18);
+    }
+    div#detail.open { transform: none; }
+    #sheet-handle {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+      flex: 0 0 var(--peek); width: 100%; padding: 4px 16px; margin: 0;
+      border: 0; border-bottom: 1px solid var(--rule); border-radius: 12px 12px 0 0;
+      background: var(--panel); color: var(--ink); font-weight: 600;
+      cursor: grab; touch-action: none; user-select: none;
+    }
+    #sheet-handle .grip { width: 40px; height: 4px; border-radius: 2px; background: var(--edge); }
+    footer#app-footer { padding: 6px 16px; }
+  }
+  @media (max-width: 1099px) { #left::after { display: none; } }
+  /* phones: the footer line and the "improved" note move into "About this
+     map", so the map gets more height */
+  @media (max-width: 699px) {
+    footer#app-footer, #helped-def { display: none; }
+    .about-phone { display: block; margin-top: 8px !important; }
+  }
+  @media (max-width: 1099px) and (max-height: 500px) {
+    /* phone held sideways: the top bar must not take the map's height */
+    #left { max-height: 45vh; overflow-y: auto; }
   }
 
   /* ---- map drawing: unchanged ---- */
@@ -364,11 +440,13 @@
 
   /* ---- print and screen export layouts (#export=map|chart) ---- */
   #export-head, #export-foot, #export-chart { display: none; }
-  body.export-mode header, body.export-mode .controls, body.export-mode #scenario-desc, body.export-mode #cards,
-  body.export-mode aside#detail, body.export-mode footer, body.export-mode #map-nav { display: none !important; }
-  body.export-mode { background: #fff; }
+  body.export-mode #app-head, body.export-mode #left, body.export-mode div#detail,
+  body.export-mode footer, body.export-mode #map-nav { display: none !important; }
+  body.export-mode { display: flex; flex-direction: column; height: 100vh; padding: 0; background: #fff; font-size: 14px; line-height: 1.45; }
+  body.export-mode #shell { display: flex; flex: 1; min-height: 0; }
+  body.export-mode #map-area { flex: 1; }
   body.export-mode #export-head { display: block; padding: 16px 22px 8px 22px; border-bottom: 1px solid var(--border); }
-  body.export-mode #export-head h1 { font-family: var(--font-display); font-size: 24px; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 4px 0; }
+  body.export-mode #export-head h1 { font-family: var(--font-display); font-size: 24px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 4px 0; }
   body.export-mode #export-head .sub { font-size: 15px; color: var(--ink-soft); }
   body.export-mode #export-foot { display: block; padding: 6px 22px 12px 22px; font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--border); }
   body.export-mode #map-wrap { display: flex; flex-direction: row; }
@@ -393,76 +471,100 @@
   .chart-muted { font: 13px "Segoe UI", Arial, sans-serif; fill: #52514e; }
   .chart-note { font-size: 14px; color: #1f1f1d; margin-top: 4px; }
 
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
 </style>
 </head>
-<body>
+<body data-dusk="0" class="preload">
 
-<header>
-  <h1>Melton &rarr; Sunshine Hospital: Access &amp; Service Improvement Scenario Explorer</h1>
-  <div class="sub">Which change to existing bus and train services most improves same-day hospital trips for Melton areas where many households are without a car? <span id="generated-note"></span></div>
+<header id="app-head" class="chrome">
+  <h1>Melton &rarr; Sunshine Hospital</h1>
+  <button id="options-toggle" class="chrome-btn" type="button" aria-expanded="false" aria-controls="toolbar">Map options</button>
+  <div class="toolbar" id="toolbar">
+    <div class="control-group" role="group" aria-labelledby="lbl-view">
+      <span class="grouplabel" id="lbl-view">View</span>
+      <div class="seg" id="view-buttons"></div>
+    </div>
+    <div class="control-group" role="group" aria-labelledby="lbl-style">
+      <span class="grouplabel" id="lbl-style">Show as</span>
+      <div class="seg" id="style-buttons"></div>
+    </div>
+    <div class="control-group" role="group" aria-labelledby="lbl-layers">
+      <span class="grouplabel" id="lbl-layers">Layers</span>
+      <div class="seg" id="layer-buttons"></div>
+    </div>
+    <button id="about-toggle" class="chrome-btn" type="button" aria-expanded="false" aria-controls="about-panel">About this map <span class="chev" aria-hidden="true">&#9662;</span></button>
+  </div>
+  <div id="about-panel" hidden>
+    <p class="about-title">Melton &rarr; Sunshine Hospital: Access &amp; Service Improvement Scenario Explorer</p>
+    <p class="sub">Which change to existing bus and train services most improves same-day hospital trips for Melton areas where many households are without a car? <span id="generated-note"></span></p>
+    <p class="about-phone">An area counts as improved when it stops being a priority area: its trip home gets shorter and no part of the trip gets longer.</p>
+    <p class="about-phone sub" id="about-footer"></p>
+  </div>
 </header>
 
-<div class="controls">
-  <div class="control-group">
-    <span class="grouplabel">View</span>
-    <div id="view-buttons"></div>
-  </div>
-  <div class="control-group">
-    <span class="grouplabel">Show as</span>
-    <div id="style-buttons"></div>
-  </div>
-  <div class="control-group">
-    <span class="grouplabel">Layers</span>
-    <div id="layer-buttons"></div>
-  </div>
-  <div class="control-group">
-    <span class="grouplabel">Scenario</span>
-    <div id="scenario-buttons"></div>
-    <span class="helped-def" id="helped-def">An area counts as improved when it stops being a priority area: its trip home gets shorter and no part of the trip gets longer.</span>
-  </div>
-  <div class="control-group" id="time-group">
-    <span class="grouplabel">Time</span>
-    <div id="time-buttons"></div>
-  </div>
-  <div class="control-group" id="colour-group">
-    <span class="grouplabel">Colour by</span>
-    <div id="colour-buttons"></div>
-  </div>
-  <div class="control-group" id="window-group">
-    <span class="grouplabel">Window</span>
-    <div id="window-buttons"></div>
-  </div>
-  <div class="control-group" id="metric-group">
-    <span class="grouplabel">Metric</span>
-    <select id="metric-select"></select>
-  </div>
-</div>
-<div id="scenario-desc"></div>
-<div id="cards"></div>
 <div id="export-head"><h1 id="export-title"></h1><div class="sub" id="export-sub"></div></div>
 
-<main>
-  <div id="map-wrap">
-    <div id="stub-banner"></div>
-    <svg id="map-svg" width="100%" height="100%"></svg>
-    <div id="map-nav" aria-label="Map navigation">
-      <button id="zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button>
-      <button id="zoom-out" type="button" title="Zoom out" aria-label="Zoom out">−</button>
-      <button id="zoom-reset" type="button" title="Reset map view" aria-label="Reset map view">↺</button>
+<main id="shell">
+  <div id="left">
+    <div class="when chrome">
+      <fieldset class="timeswitch" id="time-group">
+        <legend>Leave hospital at</legend>
+        <div class="ts" id="time-buttons"></div>
+      </fieldset>
+      <div class="control-group" id="colour-group" role="group" aria-labelledby="lbl-colour">
+        <span class="grouplabel" id="lbl-colour">Colour by</span>
+        <div class="seg" id="colour-buttons"></div>
+      </div>
+      <div class="control-group" id="window-group" role="group" aria-labelledby="lbl-window">
+        <span class="grouplabel" id="lbl-window">Window</span>
+        <div id="window-buttons"></div>
+      </div>
+      <div class="control-group" id="metric-group">
+        <label class="grouplabel" for="metric-select">Metric</label>
+        <select id="metric-select"></select>
+      </div>
     </div>
-    <div id="legend"></div>
+    <div class="changes">
+      <h2 id="changes-h">Choose a change</h2>
+      <div id="scenario-pick"><label for="scenario-select">Choose a change</label><select id="scenario-select"></select></div>
+      <div id="cards" role="radiogroup" aria-labelledby="changes-h"></div>
+      <div id="scenario-desc"></div>
+      <p class="helped-def" id="helped-def">An area counts as improved when it stops being a priority area: its trip home gets shorter and no part of the trip gets longer.</p>
+    </div>
   </div>
-  <aside id="detail">
-    <div id="ranking-panel"></div>
-    <h2>Area detail</h2>
-    <div id="detail-body" class="placeholder">Click an area to select it. Hovering previews another one.</div>
-  </aside>
-  <div id="export-chart"></div>
+
+  <div id="map-area">
+    <div id="map-wrap">
+      <div id="stub-banner"></div>
+      <svg id="map-svg" width="100%" height="100%" tabindex="0" role="img" aria-label="Map of Melton areas. Use the arrow keys to move the map."></svg>
+      <div id="map-nav" role="group" aria-label="Map navigation">
+        <button id="zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+        <button id="zoom-out" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+        <button id="zoom-reset" type="button" title="Reset map view" aria-label="Reset map view">↺</button>
+      </div>
+    </div>
+    <div id="export-chart"></div>
+  </div>
+
+  <div id="detail">
+    <button id="sheet-handle" type="button" aria-expanded="false" aria-controls="detail-inner"><span class="grip" aria-hidden="true"></span><span id="sheet-handle-text">Show key and details</span></button>
+    <div id="detail-inner">
+      <section class="rsec" id="key-section" aria-labelledby="key-h">
+        <h2 id="key-h">Map key</h2>
+        <div id="legend"></div>
+      </section>
+      <section class="rsec" id="ranking-panel"></section>
+      <section class="rsec" id="area-section" aria-labelledby="area-h">
+        <h2 id="area-h">Area detail</h2>
+        <div class="area-pick"><label for="area-select">Choose an area</label><select id="area-select"></select></div>
+        <div id="detail-body" class="placeholder">Click an area to select it. Hovering previews another one.</div>
+      </section>
+    </div>
+  </div>
 </main>
 
 <div id="export-foot"></div>
-<footer id="app-footer"></footer>
+<footer id="app-footer" class="chrome"></footer>
 
 <script src="data/melton_data.js"></script>
 <script src="data/context_layers.js"></script>
@@ -584,7 +686,8 @@
   // block; 8:30 pm = the late-window view (R/07c_late_results.R). Both read
   // from the export (R/08_export.R display block); nothing computed here.
   var DISPLAY = MELTON_DATA.display;
-  var TIMES = [{ id: "6pm", label: "Leave hospital 6 pm" }, { id: "830pm", label: "Leave hospital 8:30 pm" }];
+  // num/ampm: the time switch shows the time large, under "Leave hospital at"
+  var TIMES = [{ id: "6pm", label: "Leave hospital 6 pm", num: "6", ampm: "pm" }, { id: "830pm", label: "Leave hospital 8:30 pm", num: "8:30", ampm: "pm" }];
   function timeLabel(t) { return t === "830pm" ? "leave hospital 8:30 pm" : "leave hospital 6 pm"; }
   // 8:30 pm, S1-S4: colour by trip-home status vs today (default), or by
   // priority group (second option). Today's 31 priority areas (6 pm cut)
@@ -784,8 +887,10 @@
   // ---- controls: build once --------------------------------------------------
 
   var viewButtonsEl = document.getElementById("view-buttons");
-  [{ id: "travel", label: "Travel times" }, { id: "priority", label: "Priority areas" }].forEach(function (v) {
+  // Priority areas first: it is the view the explorer opens on
+  [{ id: "priority", label: "Priority areas" }, { id: "travel", label: "Travel times" }].forEach(function (v) {
     var btn = document.createElement("button");
+    btn.type = "button";
     btn.className = "view-btn";
     btn.textContent = v.label;
     btn.dataset.id = v.id;
@@ -883,19 +988,18 @@
       '<line x1="0" y1="0" x2="0" y2="6" stroke="#000" stroke-width="1.2" stroke-opacity="0.55"/></pattern>';
   }
 
-  var scenarioButtonsEl = document.getElementById("scenario-buttons");
+  // Scenario choice: the result list (buildCards(), below) on wide screens,
+  // this menu on narrow ones. Both set the same state.
+  var NOT_COMPUTED_TITLE = "Not yet computed — R/06_scenarios.R hasn't built this scenario yet.";
+  var scenarioSelectEl = document.getElementById("scenario-select");
   SCENARIOS.forEach(function (s) {
-    var btn = document.createElement("button");
-    btn.className = "scenario-btn";
-    btn.textContent = s.label;
-    btn.dataset.id = s.id;
-    if (scenarios[s.id] === "not_yet_computed") {
-      btn.disabled = true;
-      btn.title = "Not yet computed — R/06_scenarios.R hasn't built this scenario yet.";
-    }
-    btn.addEventListener("click", function () { state.scenario = s.id; render(); });
-    scenarioButtonsEl.appendChild(btn);
+    var opt = document.createElement("option");
+    opt.value = s.id;
+    opt.textContent = s.label;
+    if (scenarios[s.id] === "not_yet_computed") { opt.disabled = true; opt.title = NOT_COMPUTED_TITLE; }
+    scenarioSelectEl.appendChild(opt);
   });
+  scenarioSelectEl.addEventListener("change", function () { state.scenario = scenarioSelectEl.value; render(); });
 
   var windowButtonsEl = document.getElementById("window-buttons");
   WINDOWS.forEach(function (w) {
@@ -908,13 +1012,13 @@
   });
 
   var timeButtonsEl = document.getElementById("time-buttons");
+  // the time switch: one radio group, read as "Leave hospital at, 6 pm"
   TIMES.forEach(function (t) {
-    var btn = document.createElement("button");
-    btn.className = "window-btn";
-    btn.textContent = t.label;
-    btn.dataset.id = t.id;
-    btn.addEventListener("click", function () { state.time = t.id; render(); });
-    timeButtonsEl.appendChild(btn);
+    var lab = document.createElement("label");
+    lab.innerHTML = '<input type="radio" name="time" value="' + t.id + '"><span class="num">' + t.num +
+      '</span> <span class="ampm">' + t.ampm + '</span>';
+    lab.querySelector("input").addEventListener("change", function () { state.time = t.id; render(); });
+    timeButtonsEl.appendChild(lab);
   });
 
   var colourButtonsEl = document.getElementById("colour-buttons");
@@ -940,7 +1044,6 @@
     var t = event.target;
     if (!t || !t.getAttribute || t.getAttribute("data-action") !== "toggle-legend") return;
     state.legendCollapsed = !state.legendCollapsed;
-    // full render: the legend column collapses, so the map re-fits to the new width
     render();
     var tb = document.querySelector("#legend .legend-toggle");
     if (tb) tb.focus();
@@ -1000,11 +1103,92 @@
   svg.addEventListener("pointerup", finishDrag);
   svg.addEventListener("pointercancel", finishDrag);
 
+  // keyboard: with the map focused, arrow keys move it; + and - zoom; 0 resets
+  svg.addEventListener("keydown", function (event) {
+    var step = 60, k = event.key;
+    if (k === "ArrowLeft") mapView.x += step;
+    else if (k === "ArrowRight") mapView.x -= step;
+    else if (k === "ArrowUp") mapView.y += step;
+    else if (k === "ArrowDown") mapView.y -= step;
+    else if (k === "+" || k === "=") { event.preventDefault(); zoomFromCentre(1.4); return; }
+    else if (k === "-" || k === "_") { event.preventDefault(); zoomFromCentre(1 / 1.4); return; }
+    else if (k === "0") { event.preventDefault(); resetMapView(); return; }
+    else return;
+    event.preventDefault();
+    render();
+  });
+
   function selectSa1(sa1) {
     state.selectedSa1 = sa1 || null;
     render();
-    if (!state.selectedSa1) clearDetail();
+    if (!state.selectedSa1) clearDetail(); else revealDetail();
   }
+  // after a selection, bring "Area detail" into view (and open the bottom
+  // sheet on narrow screens)
+  function revealDetail() {
+    if (EXPORT_MODE) return;
+    if (narrowScreen()) setSheet(true);
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById("area-section").scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+  }
+  function narrowScreen() { return window.matchMedia && window.matchMedia("(max-width: 1099px)").matches; }
+
+  // "Choose an area": every area by name, so an area can be chosen with the
+  // keyboard or a screen reader; choosing one selects it as a click would
+  var areaSelectEl = document.getElementById("area-select");
+  (function () {
+    var none = document.createElement("option");
+    none.value = ""; none.textContent = "—";
+    areaSelectEl.appendChild(none);
+    allSa1Ids.slice().sort(function (a, b) { return areaName(a).localeCompare(areaName(b), "en", { numeric: true }); })
+      .forEach(function (id) {
+        var opt = document.createElement("option");
+        opt.value = id; opt.textContent = areaName(id);
+        areaSelectEl.appendChild(opt);
+      });
+    areaSelectEl.addEventListener("change", function () { selectSa1(areaSelectEl.value); });
+  })();
+
+  // narrow screens: the right column is a bottom sheet; click (or Enter /
+  // Space) the handle to open or close it, or drag it up and down
+  var detailEl = document.getElementById("detail");
+  var sheetHandle = document.getElementById("sheet-handle");
+  function setSheet(open) {
+    detailEl.classList.toggle("open", open);
+    sheetHandle.setAttribute("aria-expanded", open ? "true" : "false");
+    document.getElementById("sheet-handle-text").textContent = open ? "Hide key and details" : "Show key and details";
+  }
+  (function () {
+    var startY = null, dragged = false;
+    sheetHandle.addEventListener("click", function () { if (dragged) { dragged = false; return; } setSheet(!detailEl.classList.contains("open")); });
+    sheetHandle.addEventListener("pointerdown", function (e) { startY = e.clientY; dragged = false; try { sheetHandle.setPointerCapture(e.pointerId); } catch (x) { /* synthetic */ } });
+    sheetHandle.addEventListener("pointermove", function (e) {
+      if (startY === null) return;
+      var dy = e.clientY - startY, open = detailEl.classList.contains("open");
+      if (dy < -18 && !open) { setSheet(true); dragged = true; startY = e.clientY; }
+      else if (dy > 18 && open) { setSheet(false); dragged = true; startY = e.clientY; }
+    });
+    function end() { startY = null; }
+    sheetHandle.addEventListener("pointerup", end);
+    sheetHandle.addEventListener("pointercancel", end);
+  })();
+
+  // "About this map" (subtitle and data date) and, on narrow screens, "Map
+  // options" (the toolbar): disclosures; Escape closes them
+  var aboutBtn = document.getElementById("about-toggle"), aboutPanel = document.getElementById("about-panel");
+  var optionsBtn = document.getElementById("options-toggle");
+  function setAbout(open) { aboutPanel.hidden = !open; aboutBtn.setAttribute("aria-expanded", open ? "true" : "false"); }
+  function setOptions(open) { document.body.classList.toggle("options-open", open); optionsBtn.setAttribute("aria-expanded", open ? "true" : "false"); }
+  aboutBtn.addEventListener("click", function () { setAbout(aboutPanel.hidden); });
+  optionsBtn.addEventListener("click", function () { setOptions(!document.body.classList.contains("options-open")); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (!aboutPanel.hidden) { setAbout(false); aboutBtn.focus(); }
+    else if (document.body.classList.contains("options-open")) { setOptions(false); optionsBtn.focus(); }
+  });
+  document.addEventListener("pointerdown", function (e) {
+    if (!aboutPanel.hidden && !aboutPanel.contains(e.target) && !aboutBtn.contains(e.target)) setAbout(false);
+  });
 
   // "2026-09-28T19:29:58+1000" -> "28 Sep 2026, 7:29 pm". Parsed by hand:
   // the export's "+1000" offset (no colon) is not portable to Date().
@@ -1021,6 +1205,8 @@
   document.getElementById("app-footer").textContent =
     "Melton → Sunshine Hospital capstone prototype (GEOM30012). Runs offline. " +
     "All five scenarios calculated for all 402 Melton Census areas from one locked timetable snapshot (August 2026).";
+  // phones show the footer line inside "About this map" instead
+  document.getElementById("about-footer").textContent = document.getElementById("app-footer").textContent;
 
   // ---- render ---------------------------------------------------------------
 
@@ -1251,9 +1437,13 @@
 
   function legendHead() {
     return '<div class="legend-head"><div class="legend-title">' + scenarioLabel(state.scenario) +
-      ', ' + timeLabel(state.time) + '</div>' +
-      '<button type="button" class="legend-toggle" data-action="toggle-legend" aria-expanded="' + !state.legendCollapsed + '">' +
-      (state.legendCollapsed ? "Show legend" : "Hide legend") + '</button></div>';
+      ', ' + timeLabel(state.time) + '</div>' + legendToggle() + '</div>';
+  }
+  // "Hide legend" leaves a compact key (colour swatches and their labels);
+  // "Show legend" opens the full key
+  function legendToggle() {
+    return '<button type="button" class="legend-toggle" data-action="toggle-legend" aria-expanded="' + !state.legendCollapsed + '">' +
+      (state.legendCollapsed ? "Show legend" : "Hide legend") + '</button>';
   }
   var RURAL_NOTE = '<div class="rural-note">Large grey areas are rural, with few homes.</div>';
   function renderStatusLegend() {
@@ -1265,10 +1455,10 @@
       if (PRIORITY31[id]) nP++;
     });
     var html = legendHead();
-    if (state.legendCollapsed) { el.innerHTML = html; return; }
+    // collapsed: CSS shows only the head and the colour rows (.key-main), as a compact key
     html += '<div class="view-note" style="margin-top:0;border:0;font-style:normal;color:var(--text)">Trip home leaving hospital at 8:30 pm, compared with the Sept 2026 timetable at the same time.' +
       (state.scenario === "S4" ? " On the Sept 2026 timetable the trip home starts at Sunshine Hospital; with the Cobblebank site it starts at Cobblebank." : "") + '</div>';
-    html += '<div class="status-key">';
+    html += '<div class="status-key key-main">';
     STATUS_CLASSES.forEach(function (c) {
       html += '<div class="status-row" data-k="' + c.id + '" data-n="' + (counts[c.id] || 0) + '"><span class="swatch" style="background:' + c.fill +
         ';border:1px solid #8a8a86"></span><span class="lbl">' + c.label + '</span><span class="cnt">' + (counts[c.id] || 0) + ' areas</span></div>';
@@ -1298,7 +1488,7 @@
     // Collapse/expand toggle (default expanded). The click is handled by
     // one delegated listener on #legend, since innerHTML is rebuilt here.
     var html = legendHead();
-    if (state.legendCollapsed) { el.innerHTML = html; return; }
+    // collapsed: CSS shows only the head and the colour rows (.key-main), as a compact key
     if (state.scenario === "S3" && state.time === "6pm") html += '<div class="scenario-note">' + S3_NOTE_6PM + '</div>';
     if (state.time === "830pm" && state.scenario !== "S0") {
       // why the priority count can rise at 8:30 pm (numbers from the data)
@@ -1311,7 +1501,7 @@
           plural(nNew, "area", "areas") + ' had no trip home on the Sept 2026 timetable and now have one, but it is long.</div>';
       }
     }
-    html += '<div class="status-key">';
+    html += '<div class="status-key key-main">';
     PRIORITY_CLASSES.forEach(function (c) {
       var sw = c.shape === "circle" ? '<span class="swatch swatch-circle" style="background:' + c.fill + '"></span>'
         : c.shape === "nodata" ? '<span class="swatch swatch-nodata"></span>'
@@ -1357,37 +1547,39 @@
     var el = document.getElementById("ranking-panel");
     if (!isPriority) { el.style.display = "none"; return; }
     if (state.time === "830pm") {
+      // six columns do not fit the column: each change's name gets its own
+      // row above its numbers
       var lh = '<h2>Leaving hospital at 8:30 pm</h2><div class="sub">Compared with the Sept 2026 timetable at the same time. The same two lines as at 6 pm.</div>' +
-        '<table class="rank"><tr><th></th><th>No longer priority</th><th>Became priority</th><th>Reach&shy;able, long</th><th>Gets trip home</th><th>Loses trip home</th></tr>';
+        '<div class="tscroll"><table class="rank split"><thead><tr><th>No longer priority</th><th>Became priority</th><th>Reach&shy;able, long</th><th>Gets trip home</th><th>Loses trip home</th></tr></thead>';
       DISPLAY.late_summary.forEach(function (r) {
-        lh += '<tr' + (r.scenario === state.scenario ? ' class="current"' : '') + '><td>' + scenarioLabel(r.scenario) + '</td><td>' + r.moved_out +
-          '</td><td>' + r.moved_in_worse + '</td><td>' + r.moved_in_newly_reachable_long + '</td><td>' + r.restored_areas + '</td><td>' + r.lost_areas + '</td></tr>';
+        lh += '<tbody' + (r.scenario === state.scenario ? ' class="current"' : '') + '><tr><th colspan="5" scope="rowgroup" class="rname">' + scenarioLabel(r.scenario) + '</th></tr><tr><td>' + r.moved_out +
+          '</td><td>' + r.moved_in_worse + '</td><td>' + r.moved_in_newly_reachable_long + '</td><td>' + r.restored_areas + '</td><td>' + r.lost_areas + '</td></tr></tbody>';
       });
-      el.innerHTML = lh + '</table>';
+      el.innerHTML = lh + '</table></div>';
       el.style.display = "block";
       return;
     }
     var rows = priority.ranking;
     var html = '<h2>Which change helps most?</h2>' +
       '<div class="sub">How many areas stop being priority areas, or become priority areas, with each change, compared with the Sept 2026 timetable (leaving hospital at 6 pm). An area only counts as no longer a priority area if its trip home gets shorter and neither leg gets longer. The columns are counted separately.</div>' +
-      '<table class="rank"><tr><th></th><th>No longer priority</th><th>Homes without a car</th><th>Became priority</th><th>Reach&shy;able, long</th></tr>';
+      '<div class="tscroll"><table class="rank"><tr><th><span class="vh">Change</span></th><th>No longer priority</th><th>Homes without a car</th><th>Became priority</th><th>Reach&shy;able, long</th></tr>';
     rows.forEach(function (r) {
       var kinds = DISPLAY.moved_in_kind_6pm[r.scenario] || {}, nw = 0, nn = 0;
       Object.keys(kinds).forEach(function (id) { if (kinds[id] === "newly") nn++; else nw++; });
       html += '<tr' + (r.scenario === state.scenario ? ' class="current"' : '') + '><td>' + scenarioLabel(r.scenario) +
         '</td><td>' + r.moved_out + '</td><td>' + fmtInt(r.carfree_households_moved_out) + '</td><td>' + nw + '</td><td>' + nn + '</td></tr>';
     });
-    html += '</table>';
+    html += '</table></div>';
 
     html += '<div class="sub" style="margin-top:8px;">Also compared with the Sept 2026 timetable, for all areas (not part of the counts above):</div>' +
-      '<table class="rank"><tr><th>Change</th><th>Areas that get a trip home</th><th>Areas that lose a trip home</th><th>Typical change in round trip, min (middle half)</th></tr>';
+      '<div class="tscroll"><table class="rank"><tr><th>Change</th><th>Areas that get a trip home</th><th>Areas that lose a trip home</th><th>Typical change in round trip, min (middle half)</th></tr>';
     rows.forEach(function (r) {
       html += '<tr' + (r.scenario === state.scenario ? ' class="current"' : '') + '><td>' + scenarioLabel(r.scenario) +
         '</td><td>' + r.gained_feasible_journey + '</td><td>' + r.lost_feasible_journey +
         '</td><td>' + signedMin(r.complete_return_delta_median) + '<div class="iqr">' + signedMin(r.complete_return_delta_q25) + ' to ' +
         signedMin(r.complete_return_delta_q75) + '</div></td></tr>';
     });
-    html += '</table>';
+    html += '</table></div>';
     if (state.scenario === "S3") html += '<div class="s3-note">' + S3_NOTE_6PM + '</div>';
     el.innerHTML = html;
     el.style.display = "block";
@@ -1412,47 +1604,69 @@
       "Tested with the Sept 2026 buses and trains, not a future timetable." + (c.trip_home_longer_830pm > c.trip_home_shorter_830pm ? " At 8:30 pm many trips get longer." : "");
     return "";
   }
-  function renderCards() {
-    var el = document.getElementById("cards");
-    el.innerHTML = "";
+  // The result list: one row per scenario -- its radio, name and result
+  // card text. Built once (rebuilding it on every render would drop keyboard
+  // focus); render() only marks the chosen row. Markup kept for the checks:
+  // <div class="card[ active]" data-id="S0">...<div class="card-t">TEXT</div></div>
+  var cardsEl = document.getElementById("cards");
+  function buildCards() {
     SCENARIOS.forEach(function (s) {
+      var off = scenarios[s.id] === "not_yet_computed";
       var d = document.createElement("div");
-      d.className = "card" + (s.id === state.scenario ? " active" : "");
+      d.className = "card";
       d.dataset.id = s.id;
-      d.innerHTML = '<div class="card-h">' + CARD_TITLES[s.id] + '</div><div class="card-t">' + cardText(s.id) + '</div>';
-      d.addEventListener("click", function () { state.scenario = s.id; render(); });
-      el.appendChild(d);
+      d.innerHTML = '<input type="radio" name="scenario" id="sc-' + s.id + '" value="' + s.id + '"' + (off ? " disabled" : "") + '>' +
+        '<label class="card-h" for="sc-' + s.id + '"' + (off ? ' title="' + NOT_COMPUTED_TITLE + '"' : "") + '>' + CARD_TITLES[s.id] + '</label>' +
+        '<div class="card-t">' + cardText(s.id) + '</div>';
+      d.querySelector("input").addEventListener("change", function () { state.scenario = s.id; render(); });
+      // a click anywhere on the row chooses it (the radio and its name already do)
+      d.addEventListener("click", function (e) {
+        if (off || e.target.closest("input, label")) return;
+        state.scenario = s.id; render();
+      });
+      cardsEl.appendChild(d);
+    });
+  }
+  function updateCards() {
+    Array.prototype.forEach.call(cardsEl.children, function (c) {
+      var on = c.dataset.id === state.scenario;
+      c.classList.toggle("active", on);
+      c.querySelector("input").checked = on;
+    });
+    scenarioSelectEl.value = state.scenario;
+  }
+  // segmented buttons: the chosen one is marked for screen readers too
+  function pressed(container, isOn) {
+    Array.prototype.forEach.call(container.children, function (b) {
+      var on = isOn(b.dataset.id);
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
     });
   }
 
   function render() {
-    // active-button state
-    Array.prototype.forEach.call(scenarioButtonsEl.children, function (b) {
-      b.classList.toggle("active", b.dataset.id === state.scenario);
-    });
+    updateCards();
     var isPriority = state.view === "priority";
-    Array.prototype.forEach.call(viewButtonsEl.children, function (b) {
-      b.classList.toggle("active", b.dataset.id === state.view);
-    });
-    Array.prototype.forEach.call(styleButtonsEl.children, function (b) {
-      b.classList.toggle("active", b.dataset.id === state.mapStyle);
-    });
+    pressed(viewButtonsEl, function (id) { return id === state.view; });
+    pressed(styleButtonsEl, function (id) { return id === state.mapStyle; });
     Array.prototype.forEach.call(windowButtonsEl.children, function (b) {
-      b.classList.toggle("active", b.dataset.id === effectiveWindow());
       // Priority areas: the quadrant is defined on the headline window only
       b.disabled = isPriority;
       b.title = isPriority ? "Priority areas are defined on the " + windowLabel(HEADLINE_WINDOW) + " window only." : "";
     });
-    // collapsed legend gives its column to the map; set before the map is drawn
-    document.getElementById("map-wrap").classList.toggle("legend-collapsed", isPriority && state.legendCollapsed && !EXPORT_MODE);
+    pressed(windowButtonsEl, function (id) { return id === effectiveWindow(); });
+    // collapsed legend: a compact key (head + colour rows; see the CSS)
+    detailEl.classList.toggle("legend-collapsed", state.legendCollapsed && !EXPORT_MODE);
+    // the page chrome turns to dusk at 8:30 pm (Priority areas view only)
+    document.body.setAttribute("data-dusk", isPriority && state.time === "830pm" ? "1" : "0");
     document.getElementById("window-group").style.display = isPriority ? "none" : "";
     document.getElementById("metric-group").style.display = isPriority ? "none" : "";
     document.getElementById("time-group").style.display = isPriority ? "" : "none";
     document.getElementById("colour-group").style.display = (isPriority && state.time === "830pm" && state.scenario !== "S0") ? "" : "none";
-    Array.prototype.forEach.call(colourButtonsEl.children, function (b) { b.classList.toggle("active", b.dataset.id === state.colourBy); });
+    pressed(colourButtonsEl, function (id) { return id === state.colourBy; });
     var statusView = useStatusView();
-    Array.prototype.forEach.call(timeButtonsEl.children, function (b) { b.classList.toggle("active", b.dataset.id === state.time); });
-    renderCards();
+    Array.prototype.forEach.call(timeButtonsEl.querySelectorAll("input"), function (i) { i.checked = i.value === state.time; });
+    areaSelectEl.value = state.selectedSa1 || "";
     metricSelectEl.value = state.metric;
     metricSelectEl.disabled = isPriority;
 
@@ -1575,13 +1789,30 @@
     // result markers, then rail/station/suburb names on top (white halo) so
     // names stay readable where markers cluster
     overlays.forEach(function (el) { svg.appendChild(el); });
-    if (ctxLabelLayer) svg.appendChild(ctxLabelLayer);
+    if (ctxLabelLayer) {
+      // every name's white halo first, then every name's letters, so where two
+      // names touch, one name's halo never paints over the other's letters
+      // (seen on narrow maps: "Fraser Rise – Plumpton" over "Taylors Hill")
+      var names = ctxLabelLayer.querySelectorAll("text");
+      if (names.length) {
+        var halos = svgEl("g", { "class": "label-halos", "aria-hidden": "true" });
+        Array.prototype.forEach.call(names, function (t) {
+          var h = t.cloneNode(true);
+          h.style.fill = "none";
+          halos.appendChild(h);
+          t.style.stroke = "none";
+        });
+        ctxLabelLayer.insertBefore(halos, names[0]);
+      }
+      svg.appendChild(ctxLabelLayer);
+    }
     largeLabels.forEach(function (el) { svg.appendChild(el); });
     svg.appendChild(hospitalEl);
 
     osmBtn.classList.toggle("active", state.osmLayer);
+    osmBtn.setAttribute("aria-pressed", state.osmLayer ? "true" : "false");
     if (isPriority && !isStub) renderPriorityLegend(); else renderLegend(isStub);
-    if (state.osmLayer && !state.legendCollapsed) document.getElementById("legend").insertAdjacentHTML("beforeend", osmLegendHtml());
+    if (state.osmLayer) document.getElementById("legend").insertAdjacentHTML("beforeend", osmLegendHtml());
     renderRankingPanel(isPriority);
     restoreDetail();
   }
@@ -1655,7 +1886,11 @@
       var p = project(s.lon, s.lat);
       g.appendChild(svgEl("circle", { cx: p[0], cy: p[1], r: 4.5, fill: "#ffffff", stroke: "#3a3a3a", "stroke-width": 2 }));
       var pos = STATION_LABEL_POS[s.name] || { dx: 3, dy: 16, anchor: "middle" };
-      var t = svgEl("text", { x: p[0] + pos.dx, y: p[1] + pos.dy, "text-anchor": pos.anchor, "class": "ctx-station-label" });
+      // in the app, keep a centred station name inside the map's right edge (narrow
+      // maps); exports keep the positions they always had
+      var sx = p[0] + pos.dx, half = (s.name.length + 4) * 3.2;
+      if (!EXPORT_MODE && pos.anchor === "middle" && sx + half > svg.clientWidth - 4) sx = svg.clientWidth - 4 - half;
+      var t = svgEl("text", { x: sx, y: p[1] + pos.dy, "text-anchor": pos.anchor, "class": "ctx-station-label" });
       t.textContent = s.name + " Stn";
       labels.appendChild(t);
     });
@@ -1667,11 +1902,17 @@
     g.appendChild(svgEl("rect", { x: cx - 8, y: cy - 8, width: 16, height: 16, rx: 2.5, fill: "#b3001b", stroke: "#ffffff", "stroke-width": 1.5 }));
     g.appendChild(svgEl("path", { d: "M" + (cx - 1.8) + "," + (cy - 5.5) + "h3.6v3.7h3.7v3.6h-3.7v3.7h-3.6v-3.7h-3.7v-3.6h3.7z", fill: "#ffffff" }));
     // S4's site sits among suburb labels: its name goes on two lines
-    var t = svgEl("text", { x: cx + 12, y: cy - 3, "class": "ctx-hosp-label" });
     var lines = state.scenario === "S4" ? label.split(", ") : [label];
+    // the name goes right of the symbol; left of it when it would run past
+    // the map's right edge (narrow maps, app only: exports keep the right-hand label)
+    var longest = Math.max.apply(null, lines.map(function (s) { return s.length; }));
+    var left = !EXPORT_MODE && cx + 12 + longest * 7 > svg.clientWidth - 6;
+    var lx = left ? cx - 12 : cx + 12;
+    var t = svgEl("text", { x: lx, y: cy - 3, "class": "ctx-hosp-label" });
+    if (left) t.setAttribute("text-anchor", "end");
     if (lines.length === 1) t.setAttribute("y", cy + 4);
     lines.forEach(function (ln, i) {
-      var ts = svgEl("tspan", { x: cx + 12, dy: i === 0 ? 0 : 14 });
+      var ts = svgEl("tspan", { x: lx, dy: i === 0 ? 0 : 14 });
       ts.textContent = ln;
       t.appendChild(ts);
     });
@@ -1719,7 +1960,7 @@
       var ramp = m.group === "dependency" ? RAMP_DEPENDENCY : RAMP_DIFFICULTY;
       var stops = ramp.map(function (c) { return "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")"; }).join(",");
       html +=
-        '<div class="legend-title">' + m.label + '</div>' +
+        '<div class="legend-head"><div class="legend-title">' + m.label + '</div>' + legendToggle() + '</div>' +
         '<div class="ramp" style="background: linear-gradient(to right,' + stops + ')"></div>' +
         '<div class="ramp-labels"><span>' + fmt(d[0]) + '</span><span>' + fmt(d[1]) + '</span></div>';
 
@@ -2017,6 +2258,8 @@
   };
   function setupExport(kind) {
     EXPORT_MODE = true;
+    // the legend goes back beside the map: export layouts are map + legend column
+    document.getElementById("map-wrap").appendChild(document.getElementById("legend"));
     document.body.classList.add("export-mode");
     document.getElementById("export-foot").textContent = DISPLAY.sources + " " + DISPLAY.chart.people_counts_note +
       " An area counts as improved when it stops being a priority area: its trip home gets shorter and no part of the trip gets longer. Timetabled trips on Wed 9 Sep 2026; delays are not modelled.";
@@ -2066,8 +2309,27 @@
   if (HASH.colour === "status" || HASH.colour === "priority") state.colourBy = HASH.colour;
   if (HASH.export) setupExport(HASH.export);
 
+  buildCards();
+  // first visit on a laptop screen under 950 px tall: the map key starts
+  // collapsed, so "Which change helps most?" is in view without scrolling
+  if (!EXPORT_MODE && !narrowScreen() && window.innerHeight < 950) state.legendCollapsed = true;
+
+  // the map redraws whenever its box changes size (window, panels, sheet)
   window.addEventListener("resize", render);
+  // (ResizeObserver already runs at most once per frame; render() does not
+  // change the map's box, so this cannot loop)
+  if (window.ResizeObserver) {
+    var lastBox = "";
+    new ResizeObserver(function () {
+      var box = svg.clientWidth + "x" + svg.clientHeight;
+      if (box === lastBox) return;
+      lastBox = box;
+      render();
+    }).observe(svg);
+  }
   render();
+  // the dusk transition answers a click on the time switch, never the first load
+  setTimeout(function () { document.body.classList.remove("preload"); }, 0);
 })();
 </script>
 
